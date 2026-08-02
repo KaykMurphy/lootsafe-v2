@@ -1,0 +1,20 @@
+services:
+
+  database:
+    image: postgres:16-alpine
+
+    container_name: escrow-postgres
+
+    ports:
+      - "5435:5432"
+
+    environment:
+      POSTGRES_DB: escrow_dev
+      POSTGRES_USER: escrow
+      POSTGRES_PASSWORD: escrow
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
