@@ -1,0 +1,7 @@
+package com.lootsafe.exception;
+
+public class ResourceNotFoundException extends RuntimeException {
+    public ResourceNotFoundException(String message) {
+        super(message);
+    } //404
+}
