@@ -19,6 +19,7 @@ CREATE TABLE announcements (
                                notes TEXT,
                                pix_key VARCHAR(255) NOT NULL,
                                token VARCHAR(255) NOT NULL UNIQUE,
+                               price DECIMAL(10, 2) NOT NULL,
                                status VARCHAR(50) NOT NULL,
                                seller_id UUID NOT NULL,
                                CONSTRAINT fk_announcements_seller FOREIGN KEY (seller_id) REFERENCES users(id)
@@ -33,7 +34,7 @@ CREATE TABLE transactions (
                               seller_id UUID NOT NULL,
                               mercadopago_payment_id VARCHAR(255),
                               status VARCHAR(50) NOT NULL,
-                              amount DECIMAL(10,2) NOT NULL,
+                              amount DECIMAL(10, 2) NOT NULL,
                               CONSTRAINT fk_transactions_announcement FOREIGN KEY (announcement_id) REFERENCES announcements(id),
                               CONSTRAINT fk_transactions_buyer FOREIGN KEY (buyer_id) REFERENCES users(id),
                               CONSTRAINT fk_transactions_seller FOREIGN KEY (seller_id) REFERENCES users(id)
@@ -57,6 +58,3 @@ CREATE INDEX idx_transactions_buyer ON transactions(buyer_id);
 CREATE INDEX idx_transactions_seller ON transactions(seller_id);
 CREATE INDEX idx_dispute_chats_transaction ON dispute_chats(transaction_id);
 CREATE INDEX idx_dispute_chats_initiator ON dispute_chats(initiated_by);
-
-
-

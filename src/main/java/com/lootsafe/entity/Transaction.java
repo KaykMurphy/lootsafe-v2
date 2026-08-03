@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 @Table(name = "transactions")
 public class Transaction extends AbstractAuditableEntity{
 
+    @Column(name = "mercadopago_payment_id")
     private String mercadoPagoPaymentId;
 
     @Column(precision = 10, scale = 2)

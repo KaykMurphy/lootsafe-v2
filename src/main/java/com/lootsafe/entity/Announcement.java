@@ -4,6 +4,8 @@ import com.lootsafe.enums.AnnouncementStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 @Entity
@@ -31,6 +33,9 @@ public class Announcement extends AbstractAuditableEntity {
 
     @Column(unique = true, nullable = false)
     private String token;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal price;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
