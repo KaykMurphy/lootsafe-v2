@@ -36,9 +36,13 @@ Assim como a versão original, a API intermedia transações digitais com pagame
 
 ```text
 src/main/java/com/lootsafe
-|-- config          # Auditoria JPA
-|-- entity          # Entidades JPA (User, Announcement, Transaction, DisputeChat)
-|-- enums           # UserRole, TransactionStatus, AnnouncementStatus, DisputeStatus
+|-- config        # Auditoria JPA
+|-- entity        # Entidades JPA (User, Announcement, Transaction, DisputeChat)
+|-- enums         # UserRole, TransactionStatus, AnnouncementStatus, DisputeStatus
+|-- exception     # Exceções de domínio (Business, ResourceNotFound, Unauthorized, Encryption)
+|-- repository    # Repositórios Spring Data JPA
+|-- security      # Configuração de encriptação (AES/GCM)
+|-- service       # Camada de serviços de negócio
 `-- resources/db/migration   # Scripts Flyway
 ```
 
@@ -63,10 +67,12 @@ No profile `dev`, o Flyway aplica as migrações automaticamente ao subir a apli
 
 As credenciais do banco local estão em `application-dev.properties` (usuário/senha `escrow`). Para produção, as credenciais são injetadas via variáveis de ambiente e o arquivo `.env` é ignorado pelo Git (`gitignore`).
 
+As credenciais dos anúncios são encriptadas com AES/GCM via `EncryptionConfig`. As variáveis `ENCRYPTION_PASSWORD` e `ENCRYPTION_SALT` (salt em hexadecimal de 16 bytes) devem estar disponíveis no ambiente de execução.
+
 ## Próximos Passos
 
-- Repositórios Spring Data JPA.
-- Encriptação das credenciais dos anúncios (AES/GCM).
+- Camada de controllers (REST API).
+- Tratamento global de exceções (`@RestControllerAdvice`) mapeando as exceções de domínio para HTTP.
 - Integração com Mercado Pago (geração de Pix e webhooks).
 - Fluxo de mediação e chat de disputas.
 
