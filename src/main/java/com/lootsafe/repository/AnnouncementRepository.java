@@ -15,5 +15,6 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, UUID
 
     List<Announcement> findBySellerId(UUID sellerId);
 
+    Optional<Announcement> findByIdAndSellerId(UUID id, UUID sellerId);
 
 }

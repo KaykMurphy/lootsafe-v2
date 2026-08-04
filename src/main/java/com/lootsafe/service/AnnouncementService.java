@@ -51,6 +51,7 @@ public class AnnouncementService {
         existingAnnouncement.setDescription(updated.getDescription());
         existingAnnouncement.setNotes(updated.getNotes());
         existingAnnouncement.setPrice(updated.getPrice());
+        existingAnnouncement.setPixKey(updated.getPixKey());
 
         return announcementRepository.save(existingAnnouncement);
     }

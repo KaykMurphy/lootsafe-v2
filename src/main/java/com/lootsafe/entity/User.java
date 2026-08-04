@@ -26,7 +26,6 @@ public class User extends AbstractAuditableEntity{
     @Column(nullable = false)
     private String passwordHash;
 
-    @Column(nullable = false)
     private String pixKey;
 
     @Enumerated(EnumType.STRING)
