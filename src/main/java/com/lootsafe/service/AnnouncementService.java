@@ -1,11 +1,14 @@
 package com.lootsafe.service;
 
+import com.lootsafe.dto.request.AnnouncementRequestDTO;
+import com.lootsafe.dto.response.AnnouncementResponseDTO;
 import com.lootsafe.entity.Announcement;
 import com.lootsafe.entity.User;
 import com.lootsafe.enums.AnnouncementStatus;
 import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.ResourceNotFoundException;
 import com.lootsafe.exception.UnauthorizedException;
+import com.lootsafe.mapper.AnnouncementMapper;
 import com.lootsafe.repository.AnnouncementRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,44 +22,57 @@ public class AnnouncementService {
     private final AnnouncementRepository announcementRepository;
     private final EncryptionService encryptionService;
     private final UserService userService;
+    private final AnnouncementMapper announcementMapper;
 
 
-    public Announcement createAnnouncement(UUID sellerId, Announcement announcement) {
-        User seller = userService.findById(sellerId);
+    public AnnouncementResponseDTO createAnnouncement(UUID sellerId, AnnouncementRequestDTO request) {
+        User seller = userService.findEntityById(sellerId);
+
+        Announcement announcement = announcementMapper.toEntity(request);
         announcement.setSeller(seller);
-
-        String token = UUID.randomUUID().toString();
-        announcement.setToken(token);
-
+        announcement.setToken(UUID.randomUUID().toString());
         announcement.setStatus(AnnouncementStatus.ACTIVE);
 
-        String encryptedCredentials = encryptionService.encrypt(announcement.getCredentialsEncrypted());
+        String encryptedCredentials = encryptionService.encrypt(request.credentialsEncrypted());
         announcement.setCredentialsEncrypted(encryptedCredentials);
 
-        return announcementRepository.save(announcement);
+        Announcement savedAnnouncement = announcementRepository.save(announcement);
+        return announcementMapper.toResponse(savedAnnouncement);
     }
 
-    public Announcement getAnnouncementByToken(String token) {
+
+    //controllers
+    public AnnouncementResponseDTO getAnnouncementByToken(String token) {
+        Announcement announcement = announcementRepository.findByToken(token)
+                .orElseThrow(() -> new ResourceNotFoundException("Anúncio não encontrado ou link inválido."));
+
+        return announcementMapper.toResponse(announcement);
+    }
+
+    //services
+    public Announcement findEntityByToken(String token) {
         return announcementRepository.findByToken(token)
                 .orElseThrow(() -> new ResourceNotFoundException("Anúncio não encontrado ou link inválido."));
     }
 
-    public Announcement updateAnnouncement(UUID userId, UUID announcementId, Announcement updated) {
+
+    public AnnouncementResponseDTO updateAnnouncement(UUID userId, UUID announcementId, AnnouncementRequestDTO updated) {
+
         Announcement existingAnnouncement = findAnnouncementAndValidateOwner(announcementId, userId);
 
         validateAnnouncementIsEditable(existingAnnouncement,
                 "Este anúncio não pode ser alterado pois já foi finalizado, vendido ou cancelado.");
 
-        existingAnnouncement.setTitle(updated.getTitle());
-        existingAnnouncement.setDescription(updated.getDescription());
-        existingAnnouncement.setNotes(updated.getNotes());
-        existingAnnouncement.setPrice(updated.getPrice());
-        existingAnnouncement.setPixKey(updated.getPixKey());
+        announcementMapper.updateEntity(existingAnnouncement, updated);
 
-        return announcementRepository.save(existingAnnouncement);
+        Announcement savedAnnouncement = announcementRepository.save(existingAnnouncement);
+
+        return announcementMapper.toResponse(savedAnnouncement);
     }
 
-    public Announcement cancelAnnouncement(UUID userId, UUID announcementId) {
+
+    public AnnouncementResponseDTO cancelAnnouncement(UUID userId, UUID announcementId) {
+
         Announcement existingAnnouncement = findAnnouncementAndValidateOwner(announcementId, userId);
 
         validateAnnouncementIsEditable(existingAnnouncement,
@@ -64,7 +80,9 @@ public class AnnouncementService {
 
         existingAnnouncement.setStatus(AnnouncementStatus.CANCELLED);
 
-        return announcementRepository.save(existingAnnouncement);
+        Announcement savedAnnouncement = announcementRepository.save(existingAnnouncement);
+
+        return announcementMapper.toResponse(savedAnnouncement);
     }
 
 

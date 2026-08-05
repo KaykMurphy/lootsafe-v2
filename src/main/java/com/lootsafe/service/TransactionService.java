@@ -1,5 +1,7 @@
 package com.lootsafe.service;
 
+import com.lootsafe.dto.response.AnnouncementResponseDTO;
+import com.lootsafe.dto.response.TransactionResponseDTO;
 import com.lootsafe.entity.Announcement;
 import com.lootsafe.entity.Transaction;
 import com.lootsafe.entity.User;
@@ -7,6 +9,7 @@ import com.lootsafe.enums.AnnouncementStatus;
 import com.lootsafe.enums.TransactionStatus;
 import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.ResourceNotFoundException;
+import com.lootsafe.mapper.TransactionMapper;
 import com.lootsafe.repository.TransactionRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -22,12 +25,13 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final AnnouncementService announcementService;
     private final UserService userService;
+    private final TransactionMapper transactionMapper;
 
     @Transactional
-    public Transaction initiateTransaction(String announcementToken,
-                                           UUID buyerId) {
+    public TransactionResponseDTO initiateTransaction(String announcementToken,
+                                                      UUID buyerId) {
 
-        Announcement announcement = announcementService.getAnnouncementByToken(announcementToken);
+        Announcement announcement = announcementService.findEntityByToken(announcementToken);
 
         if (!announcement.getStatus().equals(AnnouncementStatus.ACTIVE)) {
             throw new BusinessException("Este anúncio não está disponível para compra.");
@@ -37,7 +41,7 @@ public class TransactionService {
             throw new BusinessException("Você não pode comprar seu próprio anúncio.");
         }
 
-        User buyer = userService.findById(buyerId);
+        User buyer = userService.findEntityById(buyerId);
 
         Transaction transaction = new Transaction();
         transaction.setAnnouncement(announcement);
@@ -48,11 +52,18 @@ public class TransactionService {
 
         announcement.setStatus(AnnouncementStatus.SOLD);
 
-        return transactionRepository.save(transaction);
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        return transactionMapper.toResponse(savedTransaction);
     }
 
 
-    public Transaction getTransactionById(UUID id) {
+    public TransactionResponseDTO getTransactionById(UUID id) {
+        Transaction transaction = findEntityById(id);
+        return transactionMapper.toResponse(transaction);
+    }
+
+    public Transaction findEntityById(UUID id) {
         return transactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada."));
     }

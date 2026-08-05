@@ -1,8 +1,11 @@
 package com.lootsafe.service;
 
+import com.lootsafe.dto.request.UserRequestDTO;
+import com.lootsafe.dto.response.UserResponseDTO;
 import com.lootsafe.entity.User;
 import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.ResourceNotFoundException;
+import com.lootsafe.mapper.UserMapper;
 import com.lootsafe.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,44 +17,49 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
-    public User createUser(User user) {
+    public UserResponseDTO createUser(UserRequestDTO dto) {
 
-        if (userRepository.existsByEmail(user.getEmail())){
+        if (userRepository.existsByEmail(dto.email())){
             throw new BusinessException("Email em uso");
         }
 
-        User newUser = new User();
-        newUser.setName(user.getName());
-        newUser.setEmail(user.getEmail());
-        newUser.setPixKey(user.getPixKey());
+        User user = userMapper.toEntity(dto);
 
-        newUser.setRole(user.getRole());
+        User savedUser = userRepository.save(user);
 
-        newUser.setPasswordHash(user.getPasswordHash());
-
-        return userRepository.save(newUser);
+        return userMapper.toResponse(savedUser);
     }
 
-    public User findByEmail(String email) {
-        return userRepository.findByEmail(email)
+    public UserResponseDTO findByEmail(String email) {
+        User user =  userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+        return userMapper.toResponse(user);
+
     }
 
-    public User findById(UUID id){
+    public UserResponseDTO getUserById(UUID id) {
+        User user = findEntityById(id);
+        return userMapper.toResponse(user);
+    }
+
+    public User findEntityById(UUID id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("E-mail não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
     }
 
-    public User updateUser(UUID id, User updateUser) {
+    public UserResponseDTO updateUser(UUID id, UserRequestDTO updateUser) {
 
-        User existingUser = findById(id);
+        User existingUser = findEntityById(id);
 
-        existingUser.setName(updateUser.getName());
-        existingUser.setPixKey(updateUser.getPixKey());
+        existingUser.setName(updateUser.name());
+        existingUser.setPixKey(updateUser.pixKey());
 
+        User savedUser = userRepository.save(existingUser);
 
-        return userRepository.save(existingUser);
+        return userMapper.toResponse(savedUser);
 
     }
 
