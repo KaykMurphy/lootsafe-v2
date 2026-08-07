@@ -6,6 +6,8 @@ import com.lootsafe.service.AnnouncementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -19,10 +21,10 @@ public class AnnouncementController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public AnnouncementResponseDTO createAnnouncement(
-            @RequestHeader("X-User-Id") UUID sellerId,
-            @RequestBody @Valid AnnouncementRequestDTO request) {
-        return announcementService.createAnnouncement(sellerId, request);
+    @PreAuthorize("hasRole('SELLER')")
+    public AnnouncementResponseDTO createAnnouncement(@RequestBody @Valid AnnouncementRequestDTO request,
+                                                      @AuthenticationPrincipal UUID currentUserId) {
+        return announcementService.createAnnouncement(currentUserId, request);
     }
 
     @GetMapping("/{token}")
@@ -31,17 +33,18 @@ public class AnnouncementController {
     }
 
     @PutMapping("/{id}")
-    public AnnouncementResponseDTO updateAnnouncement(
-            @RequestHeader("X-User-Id") UUID userId,
-            @PathVariable UUID id,
-            @RequestBody @Valid AnnouncementRequestDTO request) {
-        return announcementService.updateAnnouncement(userId, id, request);
+    @PreAuthorize("hasRole('SELLER')")
+    public AnnouncementResponseDTO updateAnnouncement(@PathVariable UUID id,
+                                                      @RequestBody @Valid AnnouncementRequestDTO request,
+                                                      @AuthenticationPrincipal UUID currentUserId) {
+        return announcementService.updateAnnouncement(currentUserId, id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void cancelAnnouncement(@RequestHeader("X-User-Id") UUID userId,
-                                   @PathVariable UUID id) {
-        announcementService.cancelAnnouncement(userId, id);
+    @PreAuthorize("hasRole('SELLER')")
+    public void cancelAnnouncement(@PathVariable UUID id,
+                                   @AuthenticationPrincipal UUID currentUserId) {
+        announcementService.cancelAnnouncement(currentUserId, id);
     }
 }

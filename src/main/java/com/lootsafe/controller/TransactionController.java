@@ -6,10 +6,11 @@ import com.lootsafe.service.TransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
-
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -20,10 +21,10 @@ public class TransactionController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public TransactionResponseDTO initiateTransaction(
-            @RequestHeader("X-User-Id") UUID buyerId,
-            @RequestBody @Valid TransactionRequestDTO request) {
-        return transactionService.initiateTransaction(request.announcementToken(), buyerId);
+    @PreAuthorize("hasRole('BUYER')")
+    public TransactionResponseDTO initiateTransaction(@RequestBody @Valid TransactionRequestDTO request,
+                                                      @AuthenticationPrincipal UUID currentUserId) {
+        return transactionService.initiateTransaction(request.announcementToken(), currentUserId);
     }
 
     @GetMapping("/{id}")

@@ -7,6 +7,8 @@ import com.lootsafe.service.DisputeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -20,16 +22,15 @@ public class DisputeController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public DisputeResponseDTO openDispute(
-            @RequestHeader("X-User-Id") UUID initiatedById,
-            @RequestBody @Valid DisputeRequestDTO request) {
-        return disputeService.openDispute(request.transactionId(), initiatedById, request.reason());
+    public DisputeResponseDTO openDispute(@RequestBody @Valid DisputeRequestDTO request,
+                                          @AuthenticationPrincipal UUID currentUserId) {
+        return disputeService.openDispute(request.transactionId(), currentUserId, request.reason());
     }
 
     @PutMapping("/{id}/resolve")
-    public DisputeResponseDTO resolveDispute(
-            @PathVariable UUID id,
-            @RequestBody @Valid ResolveDisputeRequestDTO request) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public DisputeResponseDTO resolveDispute(@PathVariable UUID id,
+                                             @RequestBody @Valid ResolveDisputeRequestDTO request) {
         return disputeService.resolveDispute(id, request.resolutionStatus(), request.resolutionNotes());
     }
 }
