@@ -1,6 +1,5 @@
 package com.lootsafe.dto.request;
 
-import com.lootsafe.enums.UserRole;
 import jakarta.validation.constraints.*;
 
 public record UserRequestDTO(
@@ -17,10 +16,9 @@ public record UserRequestDTO(
         String passwordHash,
 
         @Size(max = 255)
-        String pixKey,
+        String pixKey
 
-        @NotNull
-        UserRole role
+
 
 ){
 }

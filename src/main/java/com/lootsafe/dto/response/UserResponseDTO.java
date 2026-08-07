@@ -2,18 +2,19 @@ package com.lootsafe.dto.response;
 
 import com.lootsafe.enums.UserRole;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 public record UserResponseDTO(
-
         UUID id,
         String name,
         String email,
         String pixKey,
-        UserRole role,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
-
+        Instant createdAt,
+        Instant updatedAt,
+        Set<UserRole> roles
 ) {
 }

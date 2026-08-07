@@ -3,6 +3,7 @@ package com.lootsafe.service;
 import com.lootsafe.dto.request.UserRequestDTO;
 import com.lootsafe.dto.response.UserResponseDTO;
 import com.lootsafe.entity.User;
+import com.lootsafe.enums.UserRole;
 import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.ResourceNotFoundException;
 import com.lootsafe.mapper.UserMapper;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -30,7 +32,9 @@ public class UserService {
             throw new BusinessException("Email em uso");
         }
 
+
         User user = userMapper.toEntity(dto);
+        user.setRoles(Set.of(UserRole.BUYER, UserRole.SELLER));
 
         String passwordHash = passwordEncoder.encode(dto.passwordHash());
         user.setPasswordHash(passwordHash);
@@ -49,7 +53,7 @@ public class UserService {
         }
 
 
-        return jwtService.generateToken(user.getId(), email, user.getRole().name());
+        return jwtService.generateToken(user.getId(), email, user.getRoles());
 
     }
 

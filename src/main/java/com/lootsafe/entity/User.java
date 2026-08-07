@@ -5,7 +5,9 @@ import com.lootsafe.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -28,9 +30,11 @@ public class User extends AbstractAuditableEntity{
 
     private String pixKey;
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "role", nullable = false)
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private UserRole role;
+    private Set<UserRole> roles = new HashSet<>();
 
     @OneToMany(mappedBy = "seller", fetch = FetchType.LAZY)
     private List<Announcement> announcements;
@@ -44,5 +48,7 @@ public class User extends AbstractAuditableEntity{
     @OneToMany(mappedBy = "initiatedBy", fetch = FetchType.LAZY)
     private List<DisputeChat> openedDisputes;
 
-
+    public boolean hasRole(UserRole role) {
+        return this.roles != null && this.roles.contains(role);
+    }
 }
