@@ -3,7 +3,7 @@ package com.lootsafe.dto.response;
 import com.lootsafe.enums.TransactionStatus;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record TransactionResponseDTO(
@@ -15,8 +15,8 @@ public record TransactionResponseDTO(
         String mercadoPagoPaymentId,
         TransactionStatus status,
         BigDecimal amount,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 
 ) {
 }
