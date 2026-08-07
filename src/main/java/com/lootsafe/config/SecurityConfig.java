@@ -1,16 +1,17 @@
 package com.lootsafe.config;
 
-import com.lootsafe.entity.User;
-import com.lootsafe.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -18,28 +19,33 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            Converter<Jwt, AbstractAuthenticationToken> customJwtAuthenticationConverter
+    ) throws Exception {
         return http
-
-                .csrf(csrf -> csrf.disable())
-
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .authorizeHttpRequests(auth -> auth
 
-                .authorizeHttpRequests(auth ->
-                        auth
-                                .requestMatchers(HttpMethod.GET, "/api/admin/**").hasRole("ADMIN")
-                                .requestMatchers(HttpMethod.POST, "/api/users/login", "/api/users/register").permitAll()
-                                .requestMatchers(HttpMethod.POST, "/api/announcements").hasRole("SELLER")
-                                .requestMatchers(HttpMethod.POST, "/api/transactions").hasRole("BUYER")
-                                .anyRequest().authenticated()
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**"
+                        ).permitAll()
+
+                        .requestMatchers(HttpMethod.POST, "/api/users/login", "/api/users/register").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/announcements").hasRole("SELLER")
+                        .requestMatchers(HttpMethod.POST, "/api/transactions").hasRole("BUYER")
+
+                        .anyRequest().authenticated()
                 )
-
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(customJwtAuthenticationConverter))
+                )
                 .build();
     }
-
-
 }
