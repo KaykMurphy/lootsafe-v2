@@ -8,6 +8,7 @@ import com.lootsafe.exception.ResourceNotFoundException;
 import com.lootsafe.mapper.UserMapper;
 import com.lootsafe.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -18,6 +19,10 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+
+    private static final String MSG_USER_NOT_FOUND = "Usuário não encontrado.";
 
     public UserResponseDTO createUser(UserRequestDTO dto) {
 
@@ -27,17 +32,35 @@ public class UserService {
 
         User user = userMapper.toEntity(dto);
 
+        String passwordHash = passwordEncoder.encode(dto.passwordHash());
+        user.setPasswordHash(passwordHash);
+
         User savedUser = userRepository.save(user);
 
         return userMapper.toResponse(savedUser);
     }
 
+    public String authenticate(String email, String rawPassword) {
+
+        User user = findEntityByEmail(email);
+
+        if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())){
+            throw new BusinessException("Credenciais inválidas");
+        }
+
+
+        return jwtService.generateToken(user.getId(), email, user.getRole().name());
+
+    }
+
     public UserResponseDTO findByEmail(String email) {
-        User user =  userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
-
+        User user = findEntityByEmail(email);
         return userMapper.toResponse(user);
+    }
 
+    public User findEntityByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_USER_NOT_FOUND));
     }
 
     public UserResponseDTO getUserById(UUID id) {
@@ -47,20 +70,17 @@ public class UserService {
 
     public User findEntityById(UUID id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_USER_NOT_FOUND));
     }
 
     public UserResponseDTO updateUser(UUID id, UserRequestDTO updateUser) {
-
         User existingUser = findEntityById(id);
 
         existingUser.setName(updateUser.name());
         existingUser.setPixKey(updateUser.pixKey());
 
         User savedUser = userRepository.save(existingUser);
-
         return userMapper.toResponse(savedUser);
-
     }
 
 
