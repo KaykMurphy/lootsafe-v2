@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -50,6 +51,19 @@ public class GlobalExceptionHandler {
 
     }
 
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex,
+                                                            HttpServletRequest request) {
+        HttpStatus status = HttpStatus.FORBIDDEN;
+        ErrorResponse error = new ErrorResponse(
+                status.value(),
+                "Forbidden",
+                "Acesso negado. Você não tem permissão para este recurso.",
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(status).body(error);
+    }
+
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ErrorResponse> handleUnautrorized(UnauthorizedException ex,
                                                             HttpServletRequest request){
@@ -87,16 +101,14 @@ public class GlobalExceptionHandler {
 
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ValidationErrorResponse> handleMethodArgumentNotValid(
-            MethodArgumentNotValidException ex,
-            HttpServletRequest request
-    ) {
+    public ResponseEntity<ValidationErrorResponse> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
+                                                                                HttpServletRequest request) {
         HttpStatus status = HttpStatus.BAD_REQUEST;
-
         List<ValidationErrorResponse.FieldErrorDetail> fieldErrors = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
-                .map(error -> new ValidationErrorResponse.FieldErrorDetail(error.getField(), error.getDefaultMessage()))
+                .map(error -> new ValidationErrorResponse.FieldErrorDetail(error.getField(),
+                        error.getDefaultMessage()))
                 .toList();
 
         ValidationErrorResponse response = new ValidationErrorResponse(
@@ -106,14 +118,6 @@ public class GlobalExceptionHandler {
                 fieldErrors,
                 request.getRequestURI()
         );
-
         return ResponseEntity.status(status).body(response); // 400 valid
     }
-
-
-
-
-
-
-
 }
