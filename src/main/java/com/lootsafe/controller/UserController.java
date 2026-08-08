@@ -1,9 +1,14 @@
 package com.lootsafe.controller;
 
 import com.lootsafe.dto.request.LoginRequestDTO;
+import com.lootsafe.dto.request.TokenRefreshRequestDTO;
 import com.lootsafe.dto.request.UserRequestDTO;
 import com.lootsafe.dto.response.TokenResponse;
 import com.lootsafe.dto.response.UserResponseDTO;
+import com.lootsafe.entity.RefreshToken;
+import com.lootsafe.entity.User;
+import com.lootsafe.service.JwtService;
+import com.lootsafe.service.RefreshTokenService;
 import com.lootsafe.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,11 +26,34 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
+    private final RefreshTokenService refreshTokenService;
+    private final JwtService jwtService;
 
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> login(@RequestBody @Valid LoginRequestDTO request) {
-        String token = userService.authenticate(request.email(), request.password());
-        return ResponseEntity.ok(new TokenResponse(token));
+
+        User user = userService.authenticateAndReturnUser(request.email(), request.password());
+
+        String accessToken = jwtService.generateToken(user.getId(), user.getEmail(), user.getRoles());
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+
+        return ResponseEntity.ok(new TokenResponse(accessToken, refreshToken.getToken()));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenResponse> refresh(@RequestBody @Valid TokenRefreshRequestDTO request) {
+
+        RefreshToken validToken = refreshTokenService.verifyExpiration(
+                refreshTokenService.findByToken(request.refreshToken())
+        );
+
+        User user = validToken.getUser();
+
+        String newAccessToken = jwtService.generateToken(user.getId(), user.getEmail(), user.getRoles());
+
+        RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user.getId());
+
+        return ResponseEntity.ok(new TokenResponse(newAccessToken, newRefreshToken.getToken()));
     }
 
     @PostMapping("/register")

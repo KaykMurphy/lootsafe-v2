@@ -44,7 +44,7 @@ public class UserService {
         return userMapper.toResponse(savedUser);
     }
 
-    public String authenticate(String email, String rawPassword) {
+    public User authenticateAndReturnUser(String email, String rawPassword) {
 
         User user = findEntityByEmail(email);
 
@@ -52,9 +52,7 @@ public class UserService {
             throw new BusinessException("Credenciais inválidas");
         }
 
-
-        return jwtService.generateToken(user.getId(), email, user.getRoles());
-
+        return user;
     }
 
     public UserResponseDTO findByEmail(String email) {
