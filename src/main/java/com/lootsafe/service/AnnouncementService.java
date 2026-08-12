@@ -19,6 +19,14 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AnnouncementService {
 
+    private static final String MSG_ANNOUNCEMENT_NOT_FOUND = "Anúncio não encontrado.";
+    private static final String MSG_ANNOUNCEMENT_TOKEN_NOT_FOUND =
+            "Anúncio não encontrado ou link inválido.";
+    private static final String MSG_ANNOUNCEMENT_OWNER_MISMATCH =
+            "Este anúncio não pertence a este usuário.";
+    private static final String MSG_ANNOUNCEMENT_NOT_EDITABLE =
+            "Este anúncio não pode ser alterado pois já foi finalizado, vendido ou cancelado.";
+
     private final AnnouncementRepository announcementRepository;
     private final EncryptionService encryptionService;
     private final UserService userService;
@@ -33,7 +41,7 @@ public class AnnouncementService {
         announcement.setToken(UUID.randomUUID().toString());
         announcement.setStatus(AnnouncementStatus.ACTIVE);
 
-        String encryptedCredentials = encryptionService.encrypt(request.credentialsEncrypted());
+        String encryptedCredentials = encryptionService.encrypt(request.credentials());
         announcement.setCredentialsEncrypted(encryptedCredentials);
 
         Announcement savedAnnouncement = announcementRepository.save(announcement);
@@ -44,7 +52,7 @@ public class AnnouncementService {
     //controllers
     public AnnouncementResponseDTO getAnnouncementByToken(String token) {
         Announcement announcement = announcementRepository.findByToken(token)
-                .orElseThrow(() -> new ResourceNotFoundException("Anúncio não encontrado ou link inválido."));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_ANNOUNCEMENT_TOKEN_NOT_FOUND));
 
         return announcementMapper.toResponse(announcement);
     }
@@ -52,7 +60,7 @@ public class AnnouncementService {
     //services
     public Announcement findEntityByToken(String token) {
         return announcementRepository.findByToken(token)
-                .orElseThrow(() -> new ResourceNotFoundException("Anúncio não encontrado ou link inválido."));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_ANNOUNCEMENT_TOKEN_NOT_FOUND));
     }
 
 
@@ -60,10 +68,13 @@ public class AnnouncementService {
 
         Announcement existingAnnouncement = findAnnouncementAndValidateOwner(announcementId, userId);
 
-        validateAnnouncementIsEditable(existingAnnouncement,
-                "Este anúncio não pode ser alterado pois já foi finalizado, vendido ou cancelado.");
+        if (!existingAnnouncement.isEditable()) {
+            throw new BusinessException(MSG_ANNOUNCEMENT_NOT_EDITABLE);
+        }
 
         announcementMapper.updateEntity(existingAnnouncement, updated);
+
+        existingAnnouncement.setCredentialsEncrypted(encryptionService.encrypt(updated.credentials()));
 
         Announcement savedAnnouncement = announcementRepository.save(existingAnnouncement);
 
@@ -75,10 +86,7 @@ public class AnnouncementService {
 
         Announcement existingAnnouncement = findAnnouncementAndValidateOwner(announcementId, userId);
 
-        validateAnnouncementIsEditable(existingAnnouncement,
-                "Apenas anúncios ativos ou em rascunho podem ser cancelados.");
-
-        existingAnnouncement.setStatus(AnnouncementStatus.CANCELLED);
+        existingAnnouncement.cancel();
 
         Announcement savedAnnouncement = announcementRepository.save(existingAnnouncement);
 
@@ -88,19 +96,12 @@ public class AnnouncementService {
 
     private Announcement findAnnouncementAndValidateOwner(UUID announcementId, UUID userId) {
         Announcement announcement = announcementRepository.findById(announcementId)
-                .orElseThrow(() -> new ResourceNotFoundException("Anúncio não encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_ANNOUNCEMENT_NOT_FOUND));
 
         if (!announcement.getSeller().getId().equals(userId)) {
-            throw new UnauthorizedException("Este anúncio não pertence a este usuário.");
+            throw new UnauthorizedException(MSG_ANNOUNCEMENT_OWNER_MISMATCH);
         }
 
         return announcement;
-    }
-
-    private void validateAnnouncementIsEditable(Announcement announcement, String errorMessage) {
-        if (!(announcement.getStatus().equals(AnnouncementStatus.ACTIVE)
-                || announcement.getStatus().equals(AnnouncementStatus.DRAFT))) {
-            throw new BusinessException(errorMessage);
-        }
     }
 }

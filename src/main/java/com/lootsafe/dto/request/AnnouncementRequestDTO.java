@@ -13,7 +13,7 @@ public record AnnouncementRequestDTO(
         String description,
 
         @NotBlank
-        String credentialsEncrypted,
+        String credentials,
 
         @Size(max = 1000)
         String notes,

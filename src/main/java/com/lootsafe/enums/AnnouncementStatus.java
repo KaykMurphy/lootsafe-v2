@@ -4,6 +4,7 @@ public enum AnnouncementStatus {
 
     DRAFT,
     ACTIVE,
+    RESERVED,
     SOLD,
     CANCELLED
 }

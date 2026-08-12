@@ -5,7 +5,6 @@ import com.lootsafe.entity.DisputeChat;
 import com.lootsafe.entity.Transaction;
 import com.lootsafe.entity.User;
 import com.lootsafe.enums.DisputeStatus;
-import com.lootsafe.enums.TransactionStatus;
 import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.ResourceNotFoundException;
 import com.lootsafe.exception.UnauthorizedException;
@@ -21,9 +20,18 @@ import java.util.UUID;
 @Service
 public class DisputeService {
 
+    private static final String MSG_DISPUTE_ALREADY_OPEN =
+            "Já existe uma disputa aberta para esta transação.";
+    private static final String MSG_NOT_TRANSACTION_PARTICIPANT =
+            "Apenas o comprador ou o vendedor desta transação podem realizar esta ação.";
+    private static final String MSG_DISPUTE_NOT_FOUND = "Disputa não encontrada.";
+    private static final String MSG_DISPUTE_NOT_OPEN =
+            "Apenas disputas em aberto podem ser resolvidas.";
+    private static final String MSG_INVALID_RESOLUTION_STATUS =
+            "Status de resolução inválido. Escolha RESOLVED_RELEASE ou RESOLVED_REFUND.";
+
     private final DisputeRepository disputeRepository;
     private final TransactionService transactionService;
-    private final UserService userService;
     private final DisputeMapper disputeMapper;
 
 
@@ -33,12 +41,12 @@ public class DisputeService {
         Transaction transaction = transactionService.findEntityById(transactionId);
 
         if (disputeRepository.existsDisputeChatByTransaction(transaction)) {
-            throw new BusinessException("Já existe uma disputa aberta para esta transação.");
+            throw new BusinessException(MSG_DISPUTE_ALREADY_OPEN);
         }
 
         if (!transaction.getBuyer().getId().equals(initiatedById)
                 && !transaction.getSeller().getId().equals(initiatedById)) {
-            throw new UnauthorizedException("Apenas o comprador ou o vendedor desta transação podem realizar esta ação.");
+            throw new UnauthorizedException(MSG_NOT_TRANSACTION_PARTICIPANT);
         }
 
         User initiatedBy = transaction.getBuyer().getId().equals(initiatedById)
@@ -51,7 +59,7 @@ public class DisputeService {
         disputeChat.setReason(reason);
         disputeChat.setStatus(DisputeStatus.OPEN);
 
-        transaction.setStatus(TransactionStatus.DISPUTED);
+        transaction.markAsDisputed();
 
         DisputeChat savedDisputeChat = disputeRepository.save(disputeChat);
 
@@ -62,18 +70,17 @@ public class DisputeService {
     public DisputeResponseDTO resolveDispute(UUID disputeId, DisputeStatus resolutionStatus, String resolutionNotes) {
 
         DisputeChat disputeChat = disputeRepository.findById(disputeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Disputa não encontrada."));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_DISPUTE_NOT_FOUND));
 
         if (!disputeChat.getStatus().equals(DisputeStatus.OPEN)) {
-            throw new BusinessException("Apenas disputas em aberto podem ser resolvidas.");
+            throw new BusinessException(MSG_DISPUTE_NOT_OPEN);
         }
 
-        if (resolutionStatus == DisputeStatus.RESOLVED_RELEASE) {
-            disputeChat.getTransaction().setStatus(TransactionStatus.RELEASED);
-        } else if (resolutionStatus == DisputeStatus.RESOLVED_REFUND) {
-            disputeChat.getTransaction().setStatus(TransactionStatus.REFUNDED);
-        } else {
-            throw new BusinessException("Status de resolução inválido. Escolha RESOLVED_RELEASE ou RESOLVED_REFUND.");
+        Transaction transaction = disputeChat.getTransaction();
+        switch (resolutionStatus) {
+            case RESOLVED_RELEASE -> transaction.release();
+            case RESOLVED_REFUND -> transaction.refund();
+            default -> throw new BusinessException(MSG_INVALID_RESOLUTION_STATUS);
         }
 
         disputeChat.setStatus(resolutionStatus);
@@ -83,7 +90,6 @@ public class DisputeService {
 
         return disputeMapper.toResponse(savedDisputeChat);
     }
-
 
 
 }

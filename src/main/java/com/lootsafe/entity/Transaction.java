@@ -1,6 +1,7 @@
 package com.lootsafe.entity;
 
 import com.lootsafe.enums.TransactionStatus;
+import com.lootsafe.exception.BusinessException;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -16,13 +17,17 @@ import java.math.BigDecimal;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(callSuper = true)
-@EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @Table(name = "transactions")
 public class Transaction extends AbstractAuditableEntity{
 
-    @Column(name = "mercadopago_payment_id")
-    private String mercadoPagoPaymentId;
+    private static final String MSG_ONLY_PENDING_CAN_BE_APPROVED =
+            "A transação só pode ser aprovada quando está pendente.";
+    private static final String MSG_DISPUTE_NOT_ALLOWED_IN_STATE =
+            "A transação não pode entrar em disputa neste estado.";
+    private static final String MSG_ONLY_DISPUTED_CAN_BE_RELEASED =
+            "A transação só pode ser liberada quando está em disputa.";
+    private static final String MSG_ONLY_DISPUTED_CAN_BE_REFUNDED =
+            "A transação só pode ser reembolsada quando está em disputa.";
 
     @Column(precision = 10, scale = 2)
     private BigDecimal amount;
@@ -42,9 +47,51 @@ public class Transaction extends AbstractAuditableEntity{
     @JoinColumn(name = "seller_id", nullable = false)
     private User seller;
 
-    @OneToOne(mappedBy = "transaction", fetch = FetchType.LAZY,
-    cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(mappedBy = "transaction",
+            cascade = CascadeType.ALL, orphanRemoval = true)
     private DisputeChat dispute;
 
+    public boolean isPending() {
+        return getStatus() == TransactionStatus.PENDING;
+    }
+
+    public boolean isApproved() {
+        return getStatus() == TransactionStatus.APPROVED;
+    }
+
+    public void approve() {
+        if (getStatus() == TransactionStatus.APPROVED) {
+            return;
+        }
+        if (getStatus() != TransactionStatus.PENDING) {
+            throw new BusinessException(MSG_ONLY_PENDING_CAN_BE_APPROVED);
+        }
+        setStatus(TransactionStatus.APPROVED);
+    }
+
+    public void markAsDisputed() {
+        if (getStatus() == TransactionStatus.DISPUTED) {
+            return;
+        }
+        if (getStatus() != TransactionStatus.PENDING
+                && getStatus() != TransactionStatus.APPROVED) {
+            throw new BusinessException(MSG_DISPUTE_NOT_ALLOWED_IN_STATE);
+        }
+        setStatus(TransactionStatus.DISPUTED);
+    }
+
+    public void release() {
+        if (getStatus() != TransactionStatus.DISPUTED) {
+            throw new BusinessException(MSG_ONLY_DISPUTED_CAN_BE_RELEASED);
+        }
+        setStatus(TransactionStatus.RELEASED);
+    }
+
+    public void refund() {
+        if (getStatus() != TransactionStatus.DISPUTED) {
+            throw new BusinessException(MSG_ONLY_DISPUTED_CAN_BE_REFUNDED);
+        }
+        setStatus(TransactionStatus.REFUNDED);
+    }
 
 }
