@@ -10,10 +10,10 @@ import org.springframework.security.crypto.encrypt.TextEncryptor;
 @Configuration
 public class EncryptionConfig {
 
-    @Value("${ENCRYPTION_PASSWORD}")
+    @Value("${encryption.password:dev-password}")
     private String encryptionPassword;
 
-    @Value("${ENCRYPTION_SALT}")
+    @Value("${encryption.salt:deadbeefdeadbeef}")
     private String encryptionSalt;
 
     @Bean
