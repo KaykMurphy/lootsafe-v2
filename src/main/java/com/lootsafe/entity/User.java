@@ -14,8 +14,6 @@ import java.util.Set;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
-@ToString(callSuper = true)
 @Table(name = "users")
 public class User extends AbstractAuditableEntity{
 

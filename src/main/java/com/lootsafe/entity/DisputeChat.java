@@ -10,8 +10,6 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "dispute_chats")
-@ToString(callSuper = true)
-@EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 public class DisputeChat extends AbstractAuditableEntity{
 
     @Enumerated(EnumType.STRING)
