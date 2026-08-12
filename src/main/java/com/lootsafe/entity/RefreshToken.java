@@ -5,8 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.Audited;
-
 import java.time.Instant;
 import java.util.UUID;
 
@@ -15,7 +13,7 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Audited.Table(name = "refresh_tokens")
+@Table(name = "refresh_tokens")
 public class RefreshToken {
 
     @Id
