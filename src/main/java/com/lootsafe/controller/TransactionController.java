@@ -1,7 +1,9 @@
 package com.lootsafe.controller;
 
 import com.lootsafe.dto.request.TransactionRequestDTO;
+import com.lootsafe.dto.response.CredentialsResponseDTO;
 import com.lootsafe.dto.response.TransactionResponseDTO;
+import com.lootsafe.service.DigitalProductDeliveryService;
 import com.lootsafe.service.TransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import java.util.UUID;
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final DigitalProductDeliveryService digitalProductDeliveryService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -30,5 +33,13 @@ public class TransactionController {
     @GetMapping("/{id}")
     public TransactionResponseDTO getTransactionById(@PathVariable UUID id) {
         return transactionService.getTransactionById(id);
+    }
+
+    @GetMapping("/{id}/credentials")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasRole('BUYER')")
+    public CredentialsResponseDTO getTransactionCredentials(@PathVariable UUID id,
+                                                            @AuthenticationPrincipal UUID currentUserId) {
+        return digitalProductDeliveryService.deliverCredentials(id, currentUserId);
     }
 }
