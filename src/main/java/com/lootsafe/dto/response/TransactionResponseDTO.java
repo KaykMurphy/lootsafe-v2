@@ -12,11 +12,11 @@ public record TransactionResponseDTO(
         UUID announcementId,
         UUID buyerId,
         UUID sellerId,
-        String mercadoPagoPaymentId,
         TransactionStatus status,
         BigDecimal amount,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        PaymentResponseDTO payment
 
 ) {
 }

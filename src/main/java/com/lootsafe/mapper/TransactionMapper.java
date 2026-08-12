@@ -8,6 +8,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface TransactionMapper {
 
+    @Mapping(target = "payment", ignore = true)
     TransactionResponseDTO toResponse(Transaction transaction);
 
 }
