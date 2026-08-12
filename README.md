@@ -14,7 +14,9 @@ Assim como a versão original, a API intermedia transações digitais com pagame
 - Migrações de banco reais com **Flyway** (`V1__initial_schema.sql` em vez de `ddl-auto`).
 - `spring.jpa.hibernate.ddl-auto=validate` para garantir que o schema do banco esteja sempre alinhado com as entidades.
 - Auditoria JPA centralizada em `AbstractAuditableEntity` (`id` UUID, `created_at`, `updated_at`).
-- Domínio inicial em quatro entidades: `User`, `Announcement`, `Transaction` e `DisputeChat`.
+- Autenticação com **JWT** (OAuth2 Resource Server) + **refresh token rotativo**.
+- Integração real com o **SDK do Mercado Pago** para geração de cobranças Pix e conciliação via webhooks.
+- Domínio em seis entidades: `User`, `Announcement`, `Transaction`, `DisputeChat`, `Payment` e `RefreshToken`.
 
 ## Stack
 
@@ -22,12 +24,13 @@ Assim como a versão original, a API intermedia transações digitais com pagame
 - Spring Boot 4.1.0
 - Spring Web
 - Spring Data JPA
-- Spring Security
+- Spring Security + OAuth2 Resource Server (JWT)
 - Spring Validation
 - Spring Boot Actuator
 - Flyway
 - PostgreSQL
 - H2 (testes)
+- Mercado Pago SDK (`com.mercadopago:sdk-java`)
 - MapStruct 1.6.3
 - Lombok
 - Maven Wrapper
@@ -36,15 +39,80 @@ Assim como a versão original, a API intermedia transações digitais com pagame
 
 ```text
 src/main/java/com/lootsafe
-|-- config        # Auditoria JPA
-|-- entity        # Entidades JPA (User, Announcement, Transaction, DisputeChat)
-|-- enums         # UserRole, TransactionStatus, AnnouncementStatus, DisputeStatus
-|-- exception     # Exceções de domínio (Business, ResourceNotFound, Unauthorized, Encryption)
+|-- config        # Segurança, JWT, Mercado Pago SDK, async e auditoria JPA
+|-- controller    # REST controllers (users, announcements, transactions, disputes)
+|-- dto           # Contratos de request/response
+|-- entity        # Entidades JPA (User, Announcement, Transaction, DisputeChat, Payment, RefreshToken)
+|-- enums         # UserRole, TransactionStatus, AnnouncementStatus, DisputeStatus, PaymentStatus, PaymentProvider
+|-- exception     # Exceções de domínio + GlobalExceptionHandler (@RestControllerAdvice)
+|-- mapper        # MapStruct mappers de entidade para DTO
+|-- payment       # Integração com Mercado Pago (client, serviços de pagamento e webhook)
 |-- repository    # Repositórios Spring Data JPA
-|-- security      # Configuração de encriptação (AES/GCM)
+|-- security      # Encriptação AES/GCM e conversor de JWT
 |-- service       # Camada de serviços de negócio
+|-- swagger       # OpenAPI com autorização Bearer
 `-- resources/db/migration   # Scripts Flyway
 ```
+
+## Fluxo de pagamento
+
+1. O comprador inicia uma transação pelo token do anúncio (`POST /api/transactions`).
+2. O serviço cria uma ordem **Pix** no Mercado Pago (24h de validade) e grava o `Payment` no estado `PENDING`; o anúncio passa para `RESERVED`.
+3. O Mercado Pago notifica `POST /api/webhooks/mercadopago` (assinatura validada via `x-signature`).
+4. O webhook concilia a ordem, confirma o pagamento, aprova a transação, marca o anúncio como `SOLD` e grava `paid_at`.
+5. O comprador acessa `GET /api/transactions/{id}/credentials` e recebe as credenciais do produto descriptografadas.
+
+## API
+
+### Autenticação (`/api/users`)
+
+| Método | Rota        | Descrição                          | Acesso |
+| ------ | ----------- | ---------------------------------- | ------ |
+| POST   | `/register` | Cria usuário e emite tokens        | Público |
+| POST   | `/login`    | Login com email/senha              | Público |
+| POST   | `/refresh`  | Rotaciona o refresh token          | Público |
+| GET    | `/{id}`     | Busca usuário                      | Autenticado |
+| PUT    | `/{id}`     | Atualiza usuário                   | Autenticado |
+
+### Anúncios (`/api/announcements`)
+
+| Método | Rota       | Descrição                              | Acesso |
+| ------ | ---------- | -------------------------------------- | ------ |
+| POST   | `/`        | Cria anúncio (encripta credenciais)    | SELLER |
+| GET    | `/{token}` | Busca anúncio por token público        | Público |
+| PUT    | `/{id}`    | Atualiza anúncio (dono)                | Autenticado |
+| DELETE | `/{id}`    | Cancela anúncio (dono)                 | Autenticado |
+
+### Transações (`/api/transactions`)
+
+| Método | Rota                 | Descrição                                       | Acesso |
+| ------ | -------------------- | ----------------------------------------------- | ------ |
+| POST   | `/`                  | Inicia transação e cria cobrança Pix            | BUYER |
+| GET    | `/{id}`              | Busca transação com pagamento                    | Autenticado |
+| GET    | `/{id}/credentials`  | Libera credenciais do produto após pagamento    | BUYER |
+
+### Disputas (`/api/disputes`)
+
+| Método | Rota            | Descrição                              | Acesso |
+| ------ | --------------- | -------------------------------------- | ------ |
+| POST   | `/`             | Abre disputa (comprador/vendedor)      | Autenticado |
+| PUT    | `/{id}/resolve` | Resolve disputa (release ou refund)    | Autenticado |
+
+### Webhooks (`/api/webhooks`)
+
+| Método | Rota            | Descrição                                      | Acesso |
+| ------ | --------------- | ---------------------------------------------- | ------ |
+| POST   | `/mercadopago`  | Recebe notificações de ordem do Mercado Pago   | Público |
+
+Documentação interativa em `/swagger-ui.html` quando o profile `dev` estiver ativo.
+
+## Estados do domínio
+
+- **Anúncio**: `DRAFT` → `ACTIVE` → `RESERVED` → `SOLD` / `CANCELLED`
+- **Transação**: `PENDING` → `APPROVED` → `DISPUTED` → `RELEASED` / `REFUNDED`
+- **Pagamento**: `PENDING` → `APPROVED` / `REJECTED` / `CANCELLED` / `REFUNDED` / `EXPIRED`
+
+As transições são encapsuladas em métodos de domínio nas entidades (ex.: `announcement.reserve()`, `transaction.approve()`), validando o estado atual antes de avançar.
 
 ## Pré-requisitos
 
@@ -63,18 +131,27 @@ docker compose -f docker-compose-dev.yml up -d
 
 No profile `dev`, o Flyway aplica as migrações automaticamente ao subir a aplicação e o Hibernate valida o schema com `ddl-auto=validate`.
 
-## Variáveis de Ambiente
+## Configuração
 
-As credenciais do banco local estão em `application-dev.properties` (usuário/senha `escrow`). Para produção, as credenciais são injetadas via variáveis de ambiente e o arquivo `.env` é ignorado pelo Git (`gitignore`).
+As credenciais do banco local estão em `application-dev.properties` (usuário/senha `escrow`). Para produção, as credenciais são injetadas via variáveis de ambiente e o arquivo `.env` é ignorado pelo Git.
 
-As credenciais dos anúncios são encriptadas com AES/GCM via `EncryptionConfig`. As variáveis `ENCRYPTION_PASSWORD` e `ENCRYPTION_SALT` (salt em hexadecimal de 16 bytes) devem estar disponíveis no ambiente de execução.
+### JWT
+
+No profile `dev`, `jwt.secret`, `jwt.expirationMs` (15 min) e `jwt.refreshExpirationMs` (7 dias) têm valores padrão. Em produção, defina via variáveis de ambiente.
+
+### Encriptação
+
+As credenciais dos anúncios são encriptadas com AES/GCM via `EncryptionConfig`. No profile `dev` há valores padrão (`encryption.password=dev-password` e `encryption.salt=deadbeefdeadbeef`). Em produção, defina `encryption.password` e `encryption.salt` (salt em hexadecimal de 16 bytes) via variáveis de ambiente.
+
+### Mercado Pago
+
+As credenciais do SDK são configuradas por `mercadopago.access-token` e `mercadopago.webhook-secret`. No profile `dev` há valores temporários; em produção, defina as variáveis `MERCADOPAGO_ACCESS_TOKEN` e `MERCADOPAGO_WEBHOOK_SECRET`.
 
 ## Próximos Passos
 
-- Camada de controllers (REST API).
-- Tratamento global de exceções (`@RestControllerAdvice`) mapeando as exceções de domínio para HTTP.
-- Integração com Mercado Pago (geração de Pix e webhooks).
 - Fluxo de mediação e chat de disputas.
+- Expiração e cancelamento automático de cobranças Pix.
+- Endpoints de administração (`/api/admin`).
 
 ## Licença
 
