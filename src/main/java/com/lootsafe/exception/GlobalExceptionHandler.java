@@ -2,8 +2,8 @@ package com.lootsafe.exception;
 
 import com.lootsafe.dto.response.ErrorResponse;
 import com.lootsafe.dto.response.ValidationErrorResponse;
+import com.mercadopago.exceptions.MPInvalidWebhookSignatureException;
 import jakarta.servlet.http.HttpServletRequest;
-import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -79,6 +79,27 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(status).body(error); //403
 
+    }
+
+    @ExceptionHandler(MPInvalidWebhookSignatureException.class)
+    public ResponseEntity<Void> handleInvalidWebhookSignature(MPInvalidWebhookSignatureException ex,
+                                                              HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    @ExceptionHandler(PaymentProviderException.class)
+    public ResponseEntity<ErrorResponse> handlePaymentProvider(PaymentProviderException ex,
+                                                               HttpServletRequest request) {
+        HttpStatus status = HttpStatus.BAD_GATEWAY;
+
+        ErrorResponse error = new ErrorResponse(
+                status.value(),
+                status.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.status(status).body(error); //502
     }
 
     @ExceptionHandler(EncryptionException.class)

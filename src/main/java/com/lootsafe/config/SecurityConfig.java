@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/announcements").hasRole("SELLER")
                         .requestMatchers(HttpMethod.POST, "/api/transactions").hasRole("BUYER")
+                        .requestMatchers(HttpMethod.POST, "/api/webhooks/mercadopago").permitAll()
 
                         .anyRequest().authenticated()
                 )
