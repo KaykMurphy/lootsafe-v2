@@ -10,13 +10,16 @@ import com.lootsafe.exception.EncryptionException;
 @Service
 public class EncryptionService {
 
+    private static final String MSG_ENCRYPTION_FAILURE = "Falha ao criptografar os dados.";
+    private static final String MSG_DECRYPTION_FAILURE = "Falha ao descriptografar os dados.";
+
     private final TextEncryptor textEncryptor;
 
     public String encrypt(String plainText) {
         try {
             return textEncryptor.encrypt(plainText);
         } catch (Exception e) {
-            throw new EncryptionException("Falha ao criptografar os dados.");
+            throw new EncryptionException(MSG_ENCRYPTION_FAILURE);
         }
     }
 
@@ -24,7 +27,7 @@ public class EncryptionService {
         try {
             return textEncryptor.decrypt(encryptedText);
         } catch (Exception e) {
-            throw new EncryptionException("Falha ao descriptografar os dados.");
+            throw new EncryptionException(MSG_DECRYPTION_FAILURE);
         }
     }
 

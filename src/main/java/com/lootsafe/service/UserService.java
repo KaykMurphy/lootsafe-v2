@@ -25,11 +25,13 @@ public class UserService {
     private final JwtService jwtService;
 
     private static final String MSG_USER_NOT_FOUND = "Usuário não encontrado.";
+    private static final String MSG_EMAIL_IN_USE = "Email em uso";
+    private static final String MSG_INVALID_CREDENTIALS = "Credenciais inválidas";
 
     public UserResponseDTO createUser(UserRequestDTO dto) {
 
         if (userRepository.existsByEmail(dto.email())){
-            throw new BusinessException("Email em uso");
+            throw new BusinessException(MSG_EMAIL_IN_USE);
         }
 
 
@@ -49,7 +51,7 @@ public class UserService {
         User user = findEntityByEmail(email);
 
         if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())){
-            throw new BusinessException("Credenciais inválidas");
+            throw new BusinessException(MSG_INVALID_CREDENTIALS);
         }
 
         return user;

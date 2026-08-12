@@ -21,6 +21,10 @@ public class RefreshTokenService {
     private final JwtProperties jwtProperties;
     private final UserService userService;
 
+    private static final String MSG_TOKEN_EXPIRED = "Refresh token expirado. Faça login novamente.";
+    private static final String MSG_SESSION_REVOKED = "Sessão revogada.";
+    private static final String MSG_TOKEN_INVALID = "Refresh token inválido.";
+
     @Transactional
     public RefreshToken createRefreshToken(UUID userId) {
 
@@ -40,16 +44,16 @@ public class RefreshTokenService {
     public RefreshToken verifyExpiration(RefreshToken token) {
         if (token.getExpiryDate().isBefore(Instant.now())) {
             refreshTokenRepository.delete(token);
-            throw new UnauthorizedException("Refresh token expirado. Faça login novamente.");
+            throw new UnauthorizedException(MSG_TOKEN_EXPIRED);
         }
         if (token.isRevoked()) {
-            throw new UnauthorizedException("Sessão revogada.");
+            throw new UnauthorizedException(MSG_SESSION_REVOKED);
         }
         return token;
     }
 
     public RefreshToken findByToken(String token) {
         return refreshTokenRepository.findByToken(token)
-                .orElseThrow(() -> new UnauthorizedException("Refresh token inválido."));
+                .orElseThrow(() -> new UnauthorizedException(MSG_TOKEN_INVALID));
     }
 }
