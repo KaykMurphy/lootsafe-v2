@@ -35,5 +35,6 @@ build/
 .env
 
 TECH_SPEC.md
+MP.SPEC.md
 
 repomix-output.xml
