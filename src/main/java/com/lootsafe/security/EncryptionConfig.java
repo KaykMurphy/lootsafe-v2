@@ -1,6 +1,6 @@
 package com.lootsafe.security;
 
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.encrypt.Encryptors;
@@ -8,16 +8,13 @@ import org.springframework.security.crypto.encrypt.TextEncryptor;
 
 
 @Configuration
+@RequiredArgsConstructor
 public class EncryptionConfig {
 
-    @Value("${encryption.password:dev-password}")
-    private String encryptionPassword;
-
-    @Value("${encryption.salt:deadbeefdeadbeef}")
-    private String encryptionSalt;
+    private final EncryptionProperties properties;
 
     @Bean
     public TextEncryptor textEncryptor() {
-        return Encryptors.text(encryptionPassword, encryptionSalt);
+        return Encryptors.text(properties.getPassword(), properties.getSalt());
     }
 }
