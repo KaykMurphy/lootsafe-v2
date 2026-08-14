@@ -4,6 +4,9 @@ import com.lootsafe.enums.DisputeStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Getter
 @Setter
@@ -28,6 +31,12 @@ public class DisputeChat extends AbstractAuditableEntity{
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "initiated_by", nullable = false)
     private User initiatedBy;
+
+    @OneToMany(mappedBy = "disputeChat", fetch = FetchType.LAZY,
+    cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DisputeMessage> messages = new ArrayList<>();
+
+
 
 
 
