@@ -12,10 +12,12 @@ import com.lootsafe.mapper.AnnouncementMapper;
 import com.lootsafe.repository.AnnouncementRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class AnnouncementService {
 
@@ -33,6 +35,7 @@ public class AnnouncementService {
     private final AnnouncementMapper announcementMapper;
 
 
+    @Transactional
     public AnnouncementResponseDTO createAnnouncement(UUID sellerId, AnnouncementRequestDTO request) {
         User seller = userService.findEntityById(sellerId);
 
@@ -64,6 +67,7 @@ public class AnnouncementService {
     }
 
 
+    @Transactional
     public AnnouncementResponseDTO updateAnnouncement(UUID userId, UUID announcementId, AnnouncementRequestDTO updated) {
 
         Announcement existingAnnouncement = findAnnouncementAndValidateOwner(announcementId, userId);
@@ -82,6 +86,7 @@ public class AnnouncementService {
     }
 
 
+    @Transactional
     public AnnouncementResponseDTO cancelAnnouncement(UUID userId, UUID announcementId) {
 
         Announcement existingAnnouncement = findAnnouncementAndValidateOwner(announcementId, userId);

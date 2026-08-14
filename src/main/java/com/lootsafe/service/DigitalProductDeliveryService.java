@@ -8,11 +8,13 @@ import com.lootsafe.exception.UnauthorizedException;
 import com.lootsafe.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class DigitalProductDeliveryService {
 
     private static final String MSG_NOT_THE_BUYER = "Você não é o comprador desta transação.";
