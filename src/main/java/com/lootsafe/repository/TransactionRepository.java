@@ -1,6 +1,7 @@
 package com.lootsafe.repository;
 
 import com.lootsafe.entity.Transaction;
+import com.lootsafe.enums.TransactionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -12,6 +13,8 @@ import java.util.UUID;
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
 
     Optional<Transaction> findById(UUID id);
+
+    List<Transaction> findByStatus(TransactionStatus status);
 
     List<Transaction> findByBuyerId(UUID buyerId);
 

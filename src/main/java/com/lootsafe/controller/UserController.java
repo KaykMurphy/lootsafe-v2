@@ -32,10 +32,10 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> login(@RequestBody @Valid LoginRequestDTO request) {
 
-        User user = userService.authenticateAndReturnUser(request.email(), request.password());
+        UserResponseDTO user = userService.authenticateAndReturnUser(request.email(), request.password());
 
-        String accessToken = jwtService.generateToken(user.getId(), user.getEmail(), user.getRoles());
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+        String accessToken = jwtService.generateToken(user.id(), user.email(), user.roles());
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.id());
 
         return ResponseEntity.ok(new TokenResponse(accessToken, refreshToken.getToken()));
     }

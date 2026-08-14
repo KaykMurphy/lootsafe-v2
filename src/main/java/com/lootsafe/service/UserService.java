@@ -11,11 +11,14 @@ import com.lootsafe.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class UserService {
 
@@ -28,6 +31,7 @@ public class UserService {
     private static final String MSG_EMAIL_IN_USE = "Email em uso";
     private static final String MSG_INVALID_CREDENTIALS = "Credenciais inválidas";
 
+    @Transactional
     public UserResponseDTO createUser(UserRequestDTO dto) {
 
         if (userRepository.existsByEmail(dto.email())){
@@ -46,7 +50,7 @@ public class UserService {
         return userMapper.toResponse(savedUser);
     }
 
-    public User authenticateAndReturnUser(String email, String rawPassword) {
+    public UserResponseDTO authenticateAndReturnUser(String email, String rawPassword) {
 
         User user = findEntityByEmail(email);
 
@@ -54,7 +58,14 @@ public class UserService {
             throw new BusinessException(MSG_INVALID_CREDENTIALS);
         }
 
-        return user;
+        return userMapper.toResponse(user);
+    }
+
+    public List<UserResponseDTO> findAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .map(userMapper::toResponse)
+                .toList();
     }
 
     public UserResponseDTO findByEmail(String email) {
@@ -77,6 +88,7 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_USER_NOT_FOUND));
     }
 
+    @Transactional
     public UserResponseDTO updateUser(UUID id, UserRequestDTO updateUser) {
         User existingUser = findEntityById(id);
 

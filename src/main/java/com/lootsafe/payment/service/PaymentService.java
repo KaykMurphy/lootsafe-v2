@@ -1,11 +1,13 @@
 package com.lootsafe.payment.service;
 
+import com.lootsafe.dto.response.PaymentResponseDTO;
 import com.lootsafe.entity.Payment;
 import com.lootsafe.entity.Transaction;
 import com.lootsafe.enums.PaymentProvider;
 import com.lootsafe.enums.PaymentStatus;
 import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.ResourceNotFoundException;
+import com.lootsafe.mapper.PaymentMapper;
 import com.lootsafe.repository.PaymentRepository;
 import com.lootsafe.repository.TransactionRepository;
 import com.mercadopago.client.order.OrderCreateRequest;
@@ -43,9 +45,10 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final TransactionRepository transactionRepository;
     private final MercadoPagoClient mercadoPagoClient;
+    private final PaymentMapper paymentMapper;
 
     @Transactional
-    public Payment createPayment(UUID transactionId) {
+    public PaymentResponseDTO createPayment(UUID transactionId) {
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_TRANSACTION_NOT_FOUND));
 
@@ -61,13 +64,22 @@ public class PaymentService {
 
         Payment payment = buildPayment(transaction, expiresIn, idempotencyKey, externalReference, order);
 
-        return paymentRepository.save(payment);
+        Payment savedPayment = paymentRepository.save(payment);
+
+        return paymentMapper.toResponse(savedPayment);
     }
 
     public Payment findLatestPayment(UUID transactionId) {
         return paymentRepository.findByTransactionId(transactionId).stream()
                 .max(Comparator.comparing(Payment::getCreatedAt))
                 .orElse(null);
+    }
+
+    public List<PaymentResponseDTO> listPayments(PaymentStatus status) {
+        return paymentRepository.findByStatus(status)
+                .stream()
+                .map(paymentMapper::toResponse)
+                .toList();
     }
 
     private void validateTransactionCanReceivePayment(Transaction transaction) {

@@ -14,10 +14,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @RequiredArgsConstructor
 @Service
+@Transactional(readOnly = true)
 public class DisputeService {
 
     private static final String MSG_DISPUTE_ALREADY_OPEN =
@@ -89,6 +91,13 @@ public class DisputeService {
         DisputeChat savedDisputeChat = disputeRepository.save(disputeChat);
 
         return disputeMapper.toResponse(savedDisputeChat);
+    }
+
+    public List<DisputeResponseDTO> listDisputes() {
+        return disputeRepository.findAll()
+                .stream()
+                .map(disputeMapper::toResponse)
+                .toList();
     }
 
 

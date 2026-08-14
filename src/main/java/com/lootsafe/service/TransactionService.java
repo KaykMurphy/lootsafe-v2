@@ -13,14 +13,16 @@ import com.lootsafe.mapper.PaymentMapper;
 import com.lootsafe.mapper.TransactionMapper;
 import com.lootsafe.payment.service.PaymentService;
 import com.lootsafe.repository.TransactionRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @RequiredArgsConstructor
 @Service
+@Transactional(readOnly = true)
 public class TransactionService {
 
     private static final String MSG_CANNOT_BUY_OWN_ANNOUNCEMENT =
@@ -57,16 +59,32 @@ public class TransactionService {
 
         Transaction savedTransaction = transactionRepository.save(transaction);
 
-        Payment payment = paymentService.createPayment(savedTransaction.getId());
+        PaymentResponseDTO paymentDTO = paymentService.createPayment(savedTransaction.getId());
 
-        return buildResponse(savedTransaction, payment);
+        return buildResponse(savedTransaction, paymentDTO);
     }
 
+    public List<TransactionResponseDTO> listTransactions(TransactionStatus status) {
+        List<Transaction> transactions;
+
+        if (status == null) {
+            transactions = transactionRepository.findAll();
+        } else {
+            transactions = transactionRepository.findByStatus(status);
+        }
+
+        return transactions.stream()
+                .map(transactionMapper::toResponse)
+                .toList();
+    }
 
     public TransactionResponseDTO getTransactionById(UUID id) {
         Transaction transaction = findEntityById(id);
         Payment payment = paymentService.findLatestPayment(transaction.getId());
-        return buildResponse(transaction, payment);
+
+        PaymentResponseDTO paymentDTO = payment == null ? null : paymentMapper.toResponse(payment);
+
+        return buildResponse(transaction, paymentDTO);
     }
 
     public Transaction findEntityById(UUID id) {
@@ -74,9 +92,8 @@ public class TransactionService {
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_TRANSACTION_NOT_FOUND));
     }
 
-    private TransactionResponseDTO buildResponse(Transaction transaction, Payment payment) {
+    private TransactionResponseDTO buildResponse(Transaction transaction, PaymentResponseDTO paymentResponse) {
         TransactionResponseDTO base = transactionMapper.toResponse(transaction);
-        PaymentResponseDTO paymentResponse = payment == null ? null : paymentMapper.toResponse(payment);
 
         return new TransactionResponseDTO(
                 base.id(),
