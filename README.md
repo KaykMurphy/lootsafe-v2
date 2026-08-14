@@ -16,7 +16,10 @@ Assim como a versão original, a API intermedia transações digitais com pagame
 - Auditoria JPA centralizada em `AbstractAuditableEntity` (`id` UUID, `created_at`, `updated_at`).
 - Autenticação com **JWT** (OAuth2 Resource Server) + **refresh token rotativo**.
 - Integração real com o **SDK do Mercado Pago** para geração de cobranças Pix e conciliação via webhooks.
-- Domínio em seis entidades: `User`, `Announcement`, `Transaction`, `DisputeChat`, `Payment` e `RefreshToken`.
+- Domínio em sete entidades: `User`, `Announcement`, `Transaction`, `DisputeChat`, `DisputeMessage`, `Payment` e `RefreshToken`.
+- Chat dentro das disputas com envio e listagem de mensagens por participantes ou admin.
+- Expiração automática de cobranças Pix pendentes via scheduler.
+- Endpoints administrativos de listagem protegidos para o papel `ADMIN`.
 
 ## Stack
 
@@ -39,16 +42,17 @@ Assim como a versão original, a API intermedia transações digitais com pagame
 
 ```text
 src/main/java/com/lootsafe
-|-- config        # Segurança, JWT, Mercado Pago SDK, async e auditoria JPA
-|-- controller    # REST controllers (users, announcements, transactions, disputes)
+|-- config        # Segurança, JWT, Mercado Pago SDK, async, scheduling e auditoria JPA
+|-- controller    # REST controllers (users, announcements, transactions, disputes, admin)
 |-- dto           # Contratos de request/response
-|-- entity        # Entidades JPA (User, Announcement, Transaction, DisputeChat, Payment, RefreshToken)
+|-- entity        # Entidades JPA (User, Announcement, Transaction, DisputeChat, DisputeMessage, Payment, RefreshToken)
 |-- enums         # UserRole, TransactionStatus, AnnouncementStatus, DisputeStatus, PaymentStatus, PaymentProvider
 |-- exception     # Exceções de domínio + GlobalExceptionHandler (@RestControllerAdvice)
 |-- mapper        # MapStruct mappers de entidade para DTO
 |-- payment       # Integração com Mercado Pago (client, serviços de pagamento e webhook)
 |-- repository    # Repositórios Spring Data JPA
 |-- security      # Encriptação AES/GCM e conversor de JWT
+|-- scheduler     # Agendamentos (expiração de cobranças Pix)
 |-- service       # Camada de serviços de negócio
 |-- swagger       # OpenAPI com autorização Bearer
 `-- resources/db/migration   # Scripts Flyway
@@ -61,6 +65,8 @@ src/main/java/com/lootsafe
 3. O Mercado Pago notifica `POST /api/webhooks/mercadopago` (assinatura validada via `x-signature`).
 4. O webhook concilia a ordem, confirma o pagamento, aprova a transação, marca o anúncio como `SOLD` e grava `paid_at`.
 5. O comprador acessa `GET /api/transactions/{id}/credentials` e recebe as credenciais do produto descriptografadas.
+
+Cobranças Pix pendentes que passam do prazo de validade são canceladas pelo scheduler (`PaymentScheduler`), a transação é cancelada e o anúncio volta a ficar ativo (`ACTIVE`). O intervalo de checagem é configurado por `payment.expiration-check-interval-ms` (padrão `3600000` ms = 1h).
 
 ## API
 
@@ -97,6 +103,22 @@ src/main/java/com/lootsafe
 | ------ | --------------- | -------------------------------------- | ------ |
 | POST   | `/`             | Abre disputa (comprador/vendedor)      | Autenticado |
 | PUT    | `/{id}/resolve` | Resolve disputa (release ou refund)    | Autenticado |
+
+### Mensagens de disputa (`/api/disputes/{disputeId}/messages`)
+
+| Método | Rota | Descrição                       | Acesso |
+| ------ | ---- | ------------------------------- | ------ |
+| POST   | `/`  | Envia mensagem na disputa       | Participante / ADMIN |
+| GET    | `/`  | Lista mensagens da disputa      | Participante / ADMIN |
+
+### Administração (`/api/admin`)
+
+| Método | Rota             | Descrição                                   | Acesso |
+| ------ | ---------------- | ------------------------------------------- | ------ |
+| GET    | `/users`         | Lista usuários                              | ADMIN |
+| GET    | `/transactions`  | Lista transações (filtro por status)        | ADMIN |
+| GET    | `/disputes`      | Lista disputas                              | ADMIN |
+| GET    | `/payments`      | Lista pagamentos (filtro por status)        | ADMIN |
 
 ### Webhooks (`/api/webhooks`)
 
@@ -147,11 +169,20 @@ As credenciais dos anúncios são encriptadas com AES/GCM via `EncryptionConfig`
 
 As credenciais do SDK são configuradas por `mercadopago.access-token` e `mercadopago.webhook-secret`. No profile `dev` há valores temporários; em produção, defina as variáveis `MERCADOPAGO_ACCESS_TOKEN` e `MERCADOPAGO_WEBHOOK_SECRET`.
 
+### Expiração de pagamentos
+
+O scheduler de expiração lê `payment.expiration-check-interval-ms` (env: `PAYMENT_EXPIRATION_CHECK_INTERVAL_MS`). No profile `dev` o padrão é `3600000` (1h); em produção, defina via variável de ambiente.
+
+### Administração
+
+Os endpoints `/api/admin` exigem o papel `ADMIN`. Em `dev`, os usuários são criados com os papéis `BUYER` e `SELLER`; promova um usuário a `ADMIN` diretamente no banco para testar os endpoints.
+
 ## Próximos Passos
 
-- Fluxo de mediação e chat de disputas.
-- Expiração e cancelamento automático de cobranças Pix.
-- Endpoints de administração (`/api/admin`).
+- Cancelamento de reservas quando o anúncio for excluído.
+- Notificações por e-mail de eventos de pagamento e disputa.
+- Paginação e filtros nos endpoints de listagem.
+- Testes automatizados de integração.
 
 ## Licença
 
