@@ -25,7 +25,6 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
 
     private static final String MSG_USER_NOT_FOUND = "Usuário não encontrado.";
     private static final String MSG_EMAIL_IN_USE = "Email em uso";

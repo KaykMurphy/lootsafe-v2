@@ -26,7 +26,6 @@ public class DisputeMessageService {
     private final DisputeMessageRepository disputeMessageRepository;
     private final DisputeRepository disputeRepository;
     private final UserService userService;
-    private final DisputeService disputeService;
     private final DisputeMessageMapper disputeMessageMapper;
 
     private static final String MSG_DISPUTE_NOT_FOUND = "Disputa não encontrada.";
