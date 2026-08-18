@@ -36,7 +36,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**"
                         ).permitAll()
 
-                        .requestMatchers(HttpMethod.POST, "/api/users/login", "/api/users/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/users/login", "/api/users/register", "/api/users/refresh").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/announcements").hasRole("SELLER")
                         .requestMatchers(HttpMethod.POST, "/api/transactions").hasRole("BUYER")
