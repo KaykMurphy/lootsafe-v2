@@ -2,6 +2,7 @@ package com.lootsafe.service;
 
 import com.lootsafe.dto.response.DisputeResponseDTO;
 import com.lootsafe.entity.DisputeChat;
+import com.lootsafe.entity.Payment;
 import com.lootsafe.entity.Transaction;
 import com.lootsafe.entity.User;
 import com.lootsafe.enums.DisputeStatus;
@@ -9,11 +10,14 @@ import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.ResourceNotFoundException;
 import com.lootsafe.exception.UnauthorizedException;
 import com.lootsafe.mapper.DisputeMapper;
+import com.lootsafe.payment.service.PaymentService;
 import com.lootsafe.repository.DisputeRepository;
+import com.lootsafe.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,11 +35,14 @@ public class DisputeService {
             "Apenas disputas em aberto podem ser resolvidas.";
     private static final String MSG_INVALID_RESOLUTION_STATUS =
             "Status de resolução inválido. Escolha RESOLVED_RELEASE ou RESOLVED_REFUND.";
+    private static final String MSG_PAYMENT_NOT_FOUND =
+            "Pagamento não encontrado.";
 
     private final DisputeRepository disputeRepository;
     private final TransactionService transactionService;
     private final DisputeMapper disputeMapper;
-
+    private final PaymentService paymentService;
+    private final PaymentRepository paymentRepository;
 
     @Transactional
     public DisputeResponseDTO openDispute(UUID transactionId, UUID initiatedById, String reason) {
@@ -74,14 +81,25 @@ public class DisputeService {
         DisputeChat disputeChat = disputeRepository.findById(disputeId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_DISPUTE_NOT_FOUND));
 
-        if (!disputeChat.getStatus().equals(DisputeStatus.OPEN)) {
+        if (disputeChat.getStatus() != DisputeStatus.OPEN) {
             throw new BusinessException(MSG_DISPUTE_NOT_OPEN);
         }
 
         Transaction transaction = disputeChat.getTransaction();
+
         switch (resolutionStatus) {
             case RESOLVED_RELEASE -> transaction.release();
-            case RESOLVED_REFUND -> transaction.refund();
+
+            case RESOLVED_REFUND -> {
+                transaction.refund();
+
+                Payment latestPayment = paymentRepository.findByTransactionId(transaction.getId()).stream()
+                        .max(Comparator.comparing(payment -> payment.getCreatedAt()))
+                        .orElseThrow(() -> new ResourceNotFoundException(MSG_PAYMENT_NOT_FOUND));
+
+                paymentService.refundPayment(latestPayment.getId());
+            }
+
             default -> throw new BusinessException(MSG_INVALID_RESOLUTION_STATUS);
         }
 
@@ -99,6 +117,4 @@ public class DisputeService {
                 .map(disputeMapper::toResponse)
                 .toList();
     }
-
-
 }

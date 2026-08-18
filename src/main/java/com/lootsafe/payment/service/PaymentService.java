@@ -34,6 +34,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentService {
 
+    // TODO - MUDAR PARA VARIAVEL DE AMBIENTE
     private static final int PIX_VALIDITY_HOURS = 24;
 
     private static final String MSG_TRANSACTION_NOT_FOUND = "Transação não encontrada.";
@@ -41,6 +42,12 @@ public class PaymentService {
             "Esta transação não está em estado pendente.";
     private static final String MSG_ACTIVE_PAYMENT_ALREADY_EXISTS =
             "Já existe um pagamento pendente para esta transação.";
+    private static final String MSG_PAYMENT_NOT_FOUND =
+            "Pagamento não encontrado.";
+    private static final String MSG_PAYMENT_NOT_APPROVED =
+            "Apenas pagamentos aprovados podem ser reembolsados.";
+    private static final String MSG_PAYMENT_NOT_PENDING =
+            "Apenas pagamentos pendentes podem ser cancelados.";
 
     private final PaymentRepository paymentRepository;
     private final TransactionRepository transactionRepository;
@@ -75,9 +82,44 @@ public class PaymentService {
                 .orElse(null);
     }
 
+    @Transactional
+    public void cancelPayment(UUID paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PAYMENT_NOT_FOUND));
+
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            throw new BusinessException(MSG_PAYMENT_NOT_PENDING);
+        }
+
+        if (payment.getExternalId() != null) {
+            mercadoPagoClient.cancelOrder(payment.getExternalId());
+        }
+
+        payment.setStatus(PaymentStatus.CANCELLED);
+        paymentRepository.save(payment);
+    }
+
+    @Transactional
+    public void refundPayment(UUID paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PAYMENT_NOT_FOUND));
+
+        if (payment.getStatus() != PaymentStatus.APPROVED) {
+            throw new BusinessException(MSG_PAYMENT_NOT_APPROVED);
+        }
+
+        mercadoPagoClient.cancelOrder(payment.getExternalId());
+
+        payment.setStatus(PaymentStatus.REFUNDED);
+        paymentRepository.save(payment);
+    }
+
     public List<PaymentResponseDTO> listPayments(PaymentStatus status) {
-        return paymentRepository.findByStatus(status)
-                .stream()
+        List<Payment> payments = (status == null)
+                ? paymentRepository.findAll()
+                : paymentRepository.findByStatus(status);
+
+        return payments.stream()
                 .map(paymentMapper::toResponse)
                 .toList();
     }
@@ -164,4 +206,6 @@ public class PaymentService {
                 .findFirst()
                 .orElse(null);
     }
+
+    // TODO: Criar método auxiliar findEntityById(UUID id) e reutilizar nas buscas de pagamento > paymentRepository.findById(paymentId)
 }
