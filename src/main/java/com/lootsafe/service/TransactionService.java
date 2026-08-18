@@ -6,6 +6,8 @@ import com.lootsafe.entity.Announcement;
 import com.lootsafe.entity.Payment;
 import com.lootsafe.entity.Transaction;
 import com.lootsafe.entity.User;
+import com.lootsafe.enums.AnnouncementStatus;
+import com.lootsafe.enums.PaymentStatus;
 import com.lootsafe.enums.TransactionStatus;
 import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.ResourceNotFoundException;
@@ -13,6 +15,8 @@ import com.lootsafe.exception.UnauthorizedException;
 import com.lootsafe.mapper.PaymentMapper;
 import com.lootsafe.mapper.TransactionMapper;
 import com.lootsafe.payment.service.PaymentService;
+import com.lootsafe.repository.AnnouncementRepository;
+import com.lootsafe.repository.PaymentRepository;
 import com.lootsafe.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -32,18 +36,33 @@ public class TransactionService {
 
     private static final String MGG_UNATHORIZED_USER = "Você não é o comprador desta transação";
 
+    private static final String MSG_TRANSACTION_CANNOT_BE_REFUNDED =
+            "A transação só pode ser reembolsada quando estiver aprovada ou em disputa.";
+
+    private static final String MSG_APPROVED_PAYMENT_NOT_FOUND_FOR_REFUND =
+            "Pagamento aprovado não encontrado para reembolso.";
+
+    private static final String MSG_TRANSACTION_CANNOT_BE_CANCELLED =
+            "A transação só pode ser cancelada quando estiver pendente.";
+
+    private static final String MSG_ANNOUNCEMENT_NOT_FOUND =
+            "Anúncio não encontrado ou link inválido.";
+
+
     private final TransactionRepository transactionRepository;
-    private final AnnouncementService announcementService;
+    private final AnnouncementRepository announcementRepository;
     private final UserService userService;
     private final TransactionMapper transactionMapper;
     private final PaymentService paymentService;
     private final PaymentMapper paymentMapper;
+    private final PaymentRepository paymentRepository;
 
     @Transactional
     public TransactionResponseDTO initiateTransaction(String announcementToken,
                                                       UUID buyerId) {
 
-        Announcement announcement = announcementService.findEntityByToken(announcementToken);
+        Announcement announcement = announcementRepository.findByToken(announcementToken)
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_ANNOUNCEMENT_NOT_FOUND));
 
         if (announcement.getSeller().getId().equals(buyerId)) {
             throw new BusinessException(MSG_CANNOT_BUY_OWN_ANNOUNCEMENT);
@@ -63,6 +82,54 @@ public class TransactionService {
         Transaction savedTransaction = transactionRepository.save(transaction);
 
         PaymentResponseDTO paymentDTO = paymentService.createPayment(savedTransaction.getId());
+
+        return buildResponse(savedTransaction, paymentDTO);
+    }
+
+    @Transactional
+    public TransactionResponseDTO refundTransaction(UUID transactionId) {
+        Transaction transaction = findEntityById(transactionId);
+
+        if (transaction.getStatus() != TransactionStatus.APPROVED
+                && transaction.getStatus() != TransactionStatus.DISPUTED) {
+            throw new BusinessException(MSG_TRANSACTION_CANNOT_BE_REFUNDED);
+        }
+
+        Payment approvedPayment = paymentRepository.findByTransactionIdAndStatus(transactionId, PaymentStatus.APPROVED)
+                .orElseThrow(() -> new BusinessException(MSG_APPROVED_PAYMENT_NOT_FOUND_FOR_REFUND));
+
+        paymentService.refundPayment(approvedPayment.getId());
+
+        transaction.setStatus(TransactionStatus.REFUNDED);
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        PaymentResponseDTO paymentDTO = paymentMapper.toResponse(approvedPayment);
+
+        return buildResponse(savedTransaction, paymentDTO);
+    }
+
+    @Transactional
+    public TransactionResponseDTO cancelTransaction(UUID transactionId) {
+        Transaction transaction = findEntityById(transactionId);
+
+        if (transaction.getStatus() != TransactionStatus.PENDING) {
+            throw new BusinessException(MSG_TRANSACTION_CANNOT_BE_CANCELLED);
+        }
+
+        paymentRepository.findByTransactionId(transactionId).stream()
+                .filter(payment -> payment.getStatus() == PaymentStatus.PENDING)
+                .forEach(payment -> paymentService.cancelPayment(payment.getId()));
+
+        transaction.setStatus(TransactionStatus.CANCELLED);
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        Announcement announcement = savedTransaction.getAnnouncement();
+        if (announcement != null && announcement.getStatus() == AnnouncementStatus.RESERVED) {
+            announcement.setStatus(AnnouncementStatus.ACTIVE);
+        }
+
+        Payment payment = paymentService.findLatestPayment(savedTransaction.getId());
+        PaymentResponseDTO paymentDTO = payment == null ? null : paymentMapper.toResponse(payment);
 
         return buildResponse(savedTransaction, paymentDTO);
     }
