@@ -35,11 +35,21 @@ public class TransactionController {
         return transactionService.getTransactionById(id);
     }
 
-    @GetMapping("/{id}/credentials")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasRole('BUYER')")
+    @GetMapping("/{id}/credentials")
     public CredentialsResponseDTO getTransactionCredentials(@PathVariable UUID id,
                                                             @AuthenticationPrincipal UUID currentUserId) {
         return digitalProductDeliveryService.deliverCredentials(id, currentUserId);
+    }
+
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasRole('BUYER')")
+    @PostMapping("/{id}/confirm")
+    public TransactionResponseDTO confirmReceipt(@PathVariable UUID id,
+                                                 @AuthenticationPrincipal UUID currentUserId){
+
+        return transactionService.confirmReceipt(id, currentUserId);
+
     }
 }

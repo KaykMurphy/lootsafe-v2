@@ -29,6 +29,9 @@ public class Transaction extends AbstractAuditableEntity{
     private static final String MSG_ONLY_DISPUTED_CAN_BE_REFUNDED =
             "A transação só pode ser reembolsada quando está em disputa.";
 
+    private static final String MSG_ONLY_APPROVED_CAN_BE_CONFIRMED =
+            "A transação só pode ser confirmada quando aprovada.";
+
     @Column(precision = 10, scale = 2)
     private BigDecimal amount;
 
@@ -78,6 +81,18 @@ public class Transaction extends AbstractAuditableEntity{
             throw new BusinessException(MSG_DISPUTE_NOT_ALLOWED_IN_STATE);
         }
         setStatus(TransactionStatus.DISPUTED);
+    }
+
+    public void confirmReceipt() {
+        if (getStatus() == TransactionStatus.RELEASED) {
+            return;
+        }
+
+        if (getStatus() != TransactionStatus.APPROVED) {
+            throw new BusinessException(MSG_ONLY_APPROVED_CAN_BE_CONFIRMED);
+        }
+
+        setStatus(TransactionStatus.RELEASED);
     }
 
     public void release() {

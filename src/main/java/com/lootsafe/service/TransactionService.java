@@ -9,6 +9,7 @@ import com.lootsafe.entity.User;
 import com.lootsafe.enums.TransactionStatus;
 import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.ResourceNotFoundException;
+import com.lootsafe.exception.UnauthorizedException;
 import com.lootsafe.mapper.PaymentMapper;
 import com.lootsafe.mapper.TransactionMapper;
 import com.lootsafe.payment.service.PaymentService;
@@ -28,6 +29,8 @@ public class TransactionService {
     private static final String MSG_CANNOT_BUY_OWN_ANNOUNCEMENT =
             "Você não pode comprar seu próprio anúncio.";
     private static final String MSG_TRANSACTION_NOT_FOUND = "Transação não encontrada.";
+
+    private static final String MGG_UNATHORIZED_USER = "Você não é o comprador desta transação";
 
     private final TransactionRepository transactionRepository;
     private final AnnouncementService announcementService;
@@ -90,6 +93,24 @@ public class TransactionService {
     public Transaction findEntityById(UUID id) {
         return transactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_TRANSACTION_NOT_FOUND));
+    }
+
+    @Transactional
+    public TransactionResponseDTO confirmReceipt(UUID transactionId, UUID buyerId) {
+        Transaction transaction = findEntityById(transactionId);
+
+        if (!transaction.getBuyer().getId().equals(buyerId)) {
+            throw new UnauthorizedException(MGG_UNATHORIZED_USER);
+        }
+
+        transaction.confirmReceipt();
+
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        Payment payment = paymentService.findLatestPayment(savedTransaction.getId());
+        PaymentResponseDTO paymentDTO = payment == null ? null : paymentMapper.toResponse(payment);
+
+        return buildResponse(savedTransaction, paymentDTO);
     }
 
     private TransactionResponseDTO buildResponse(Transaction transaction, PaymentResponseDTO paymentResponse) {
