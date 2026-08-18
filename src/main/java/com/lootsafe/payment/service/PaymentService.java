@@ -1,5 +1,6 @@
 package com.lootsafe.payment.service;
 
+import com.lootsafe.config.PaymentProperties;
 import com.lootsafe.dto.response.PaymentResponseDTO;
 import com.lootsafe.entity.Payment;
 import com.lootsafe.entity.Transaction;
@@ -34,9 +35,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentService {
 
-    // TODO - MUDAR PARA VARIAVEL DE AMBIENTE
-    private static final int PIX_VALIDITY_HOURS = 24;
-
     private static final String MSG_TRANSACTION_NOT_FOUND = "Transação não encontrada.";
     private static final String MSG_TRANSACTION_NOT_PENDING =
             "Esta transação não está em estado pendente.";
@@ -53,6 +51,7 @@ public class PaymentService {
     private final TransactionRepository transactionRepository;
     private final MercadoPagoClient mercadoPagoClient;
     private final PaymentMapper paymentMapper;
+    private final PaymentProperties paymentProperties;
 
     @Transactional
     public PaymentResponseDTO createPayment(UUID transactionId) {
@@ -61,7 +60,7 @@ public class PaymentService {
 
         validateTransactionCanReceivePayment(transaction);
 
-        Instant expiresIn = Instant.now().plus(PIX_VALIDITY_HOURS, ChronoUnit.HOURS);
+        Instant expiresIn = Instant.now().plus(paymentProperties.getPixValidityHours(), ChronoUnit.HOURS);
         String idempotencyKey = UUID.randomUUID().toString();
         String externalReference = transactionId.toString();
 
@@ -75,6 +74,7 @@ public class PaymentService {
 
         return paymentMapper.toResponse(savedPayment);
     }
+
 
     public Payment findLatestPayment(UUID transactionId) {
         return paymentRepository.findByTransactionId(transactionId).stream()
@@ -108,7 +108,9 @@ public class PaymentService {
             throw new BusinessException(MSG_PAYMENT_NOT_APPROVED);
         }
 
-        mercadoPagoClient.cancelOrder(payment.getExternalId());
+        if (payment.getExternalId() != null) {
+            mercadoPagoClient.cancelOrder(payment.getExternalId());
+        }
 
         payment.setStatus(PaymentStatus.REFUNDED);
         paymentRepository.save(payment);
