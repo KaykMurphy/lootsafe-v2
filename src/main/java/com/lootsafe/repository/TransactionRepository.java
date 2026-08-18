@@ -20,4 +20,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     List<Transaction> findBySellerId(UUID sellerId);
 
+
+
 }
