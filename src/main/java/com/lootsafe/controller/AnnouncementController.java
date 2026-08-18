@@ -47,4 +47,11 @@ public class AnnouncementController {
                                    @AuthenticationPrincipal UUID currentUserId) {
         announcementService.cancelAnnouncement(currentUserId, id);
     }
+
+    @PostMapping("/{id}/cancel-reservation")
+    @PreAuthorize("hasRole('SELLER')")
+    public AnnouncementResponseDTO cancelReservation(@PathVariable UUID id,
+                                                     @AuthenticationPrincipal UUID currentUserId) {
+        return announcementService.cancelReservation(id, currentUserId);
+    }
 }
