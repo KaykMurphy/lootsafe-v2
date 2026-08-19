@@ -6,6 +6,7 @@ import com.lootsafe.entity.Payment;
 import com.lootsafe.entity.Transaction;
 import com.lootsafe.entity.User;
 import com.lootsafe.enums.DisputeStatus;
+import com.lootsafe.enums.PaymentStatus;
 import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.ResourceNotFoundException;
 import com.lootsafe.exception.UnauthorizedException;
@@ -17,7 +18,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,8 +35,8 @@ public class DisputeService {
             "Apenas disputas em aberto podem ser resolvidas.";
     private static final String MSG_INVALID_RESOLUTION_STATUS =
             "Status de resolução inválido. Escolha RESOLVED_RELEASE ou RESOLVED_REFUND.";
-    private static final String MSG_PAYMENT_NOT_FOUND =
-            "Pagamento não encontrado.";
+    private static final String MSG_APPROVED_PAYMENT_NOT_FOUND =
+            "Pagamento aprovado não encontrado para esta transação.";
 
     private final DisputeRepository disputeRepository;
     private final TransactionService transactionService;
@@ -93,11 +93,11 @@ public class DisputeService {
             case RESOLVED_REFUND -> {
                 transaction.refund();
 
-                Payment latestPayment = paymentRepository.findByTransactionId(transaction.getId()).stream()
-                        .max(Comparator.comparing(payment -> payment.getCreatedAt()))
-                        .orElseThrow(() -> new ResourceNotFoundException(MSG_PAYMENT_NOT_FOUND));
+                Payment approvedPayment = paymentRepository
+                        .findByTransactionIdAndStatus(transaction.getId(), PaymentStatus.APPROVED)
+                        .orElseThrow(() -> new ResourceNotFoundException(MSG_APPROVED_PAYMENT_NOT_FOUND));
 
-                paymentService.refundPayment(latestPayment.getId());
+                paymentService.refundPayment(approvedPayment.getId());
             }
 
             default -> throw new BusinessException(MSG_INVALID_RESOLUTION_STATUS);
