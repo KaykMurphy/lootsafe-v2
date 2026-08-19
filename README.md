@@ -16,10 +16,13 @@ Assim como a versão original, a API intermedia transações digitais com pagame
 - Auditoria JPA centralizada em `AbstractAuditableEntity` (`id` UUID, `created_at`, `updated_at`).
 - Autenticação com **JWT** (OAuth2 Resource Server) + **refresh token rotativo**.
 - Integração real com o **SDK do Mercado Pago** para geração de cobranças Pix e conciliação via webhooks.
-- Domínio em sete entidades: `User`, `Announcement`, `Transaction`, `DisputeChat`, `DisputeMessage`, `Payment` e `RefreshToken`.
+- Domínio em oito entidades: `User`, `Announcement`, `Transaction`, `DisputeChat`, `DisputeMessage`, `Payment`, `RefreshToken` e `PaymentWebhookEvent`.
 - Chat dentro das disputas com envio e listagem de mensagens por participantes ou admin.
 - Expiração automática de cobranças Pix pendentes via scheduler.
-- Endpoints administrativos de listagem protegidos para o papel `ADMIN`.
+- Webhooks do Mercado Pago persistidos e **deduplicados** (`PaymentWebhookEvent`) para rastreabilidade, com reprocessamento automático de eventos com falha via scheduler.
+- Confirmação de recebimento pelo comprador (liberação do valor no escrow) e cancelamento de reserva pelo vendedor.
+- Operações administrativas além de listagem: cancelar transação, reembolsar transação/pagamento e cancelar pagamento.
+- Endpoints administrativos protegidos para o papel `ADMIN`; acesso a usuário e transação restrito ao dono ou admin.
 
 ## Stack
 
@@ -45,14 +48,14 @@ src/main/java/com/lootsafe
 |-- config        # Segurança, JWT, Mercado Pago SDK, async, scheduling e auditoria JPA
 |-- controller    # REST controllers (users, announcements, transactions, disputes, admin)
 |-- dto           # Contratos de request/response
-|-- entity        # Entidades JPA (User, Announcement, Transaction, DisputeChat, DisputeMessage, Payment, RefreshToken)
-|-- enums         # UserRole, TransactionStatus, AnnouncementStatus, DisputeStatus, PaymentStatus, PaymentProvider
+|-- entity        # Entidades JPA (User, Announcement, Transaction, DisputeChat, DisputeMessage, Payment, RefreshToken, PaymentWebhookEvent)
+|-- enums         # UserRole, TransactionStatus, AnnouncementStatus, DisputeStatus, PaymentStatus, PaymentProvider, WebhookEventStatus
 |-- exception     # Exceções de domínio + GlobalExceptionHandler (@RestControllerAdvice)
 |-- mapper        # MapStruct mappers de entidade para DTO
-|-- payment       # Integração com Mercado Pago (client, serviços de pagamento e webhook)
+|-- payment       # Integração com Mercado Pago (client, serviços de pagamento, processamento e webhook)
 |-- repository    # Repositórios Spring Data JPA
 |-- security      # Encriptação AES/GCM e conversor de JWT
-|-- scheduler     # Agendamentos (expiração de cobranças Pix)
+|-- scheduler     # Agendamentos (expiração de cobranças Pix e retry de webhooks)
 |-- service       # Camada de serviços de negócio
 |-- swagger       # OpenAPI com autorização Bearer
 `-- resources/db/migration   # Scripts Flyway
@@ -63,46 +66,49 @@ src/main/java/com/lootsafe
 1. O comprador inicia uma transação pelo token do anúncio (`POST /api/transactions`).
 2. O serviço cria uma ordem **Pix** no Mercado Pago (24h de validade) e grava o `Payment` no estado `PENDING`; o anúncio passa para `RESERVED`.
 3. O Mercado Pago notifica `POST /api/webhooks/mercadopago` (assinatura validada via `x-signature`).
-4. O webhook concilia a ordem, confirma o pagamento, aprova a transação, marca o anúncio como `SOLD` e grava `paid_at`.
+4. O webhook é persistido (deduplicado por `external_event_id`) e concilia a ordem, confirma o pagamento, aprova a transação, marca o anúncio como `SOLD` e grava `paid_at`. Eventos com falha são reprocessados automaticamente.
 5. O comprador acessa `GET /api/transactions/{id}/credentials` e recebe as credenciais do produto descriptografadas.
+6. O comprador confirma o recebimento (`POST /api/transactions/{id}/confirm`) e o valor é liberado (transação `RELEASED`).
 
-Cobranças Pix pendentes que passam do prazo de validade são canceladas pelo scheduler (`PaymentScheduler`), a transação é cancelada e o anúncio volta a ficar ativo (`ACTIVE`). O intervalo de checagem é configurado por `payment.expiration-check-interval-ms` (padrão `3600000` ms = 1h).
+Cobranças Pix pendentes que passam do prazo de validade são canceladas pelo scheduler (`PaymentScheduler`), a transação é cancelada e o anúncio volta a ficar ativo (`ACTIVE`). O intervalo de checagem é configurado por `payment.expiration-check-interval-ms` (padrão `3600000` ms = 1h). O retry de webhooks com falha roda em `payment.webhook-retry-interval-ms` (padrão `300000` ms = 5 min).
 
 ## API
 
 ### Autenticação (`/api/users`)
 
-| Método | Rota        | Descrição                          | Acesso |
-| ------ | ----------- | ---------------------------------- | ------ |
-| POST   | `/register` | Cria usuário e emite tokens        | Público |
-| POST   | `/login`    | Login com email/senha              | Público |
-| POST   | `/refresh`  | Rotaciona o refresh token          | Público |
-| GET    | `/{id}`     | Busca usuário                      | Autenticado |
-| PUT    | `/{id}`     | Atualiza usuário                   | Autenticado |
+| Método | Rota       | Descrição                          | Acesso |
+| ------ | ---------- | ---------------------------------- | ------ |
+| POST   | `/register`| Cria usuário e emite tokens        | Público |
+| POST   | `/login`   | Login com email/senha              | Público |
+| POST   | `/refresh` | Rotaciona o refresh token          | Público |
+| GET    | `/{id}`    | Busca usuário (dono ou admin)      | Autenticado |
+| PUT    | `/{id}`    | Atualiza nome e pix key            | Autenticado |
 
 ### Anúncios (`/api/announcements`)
 
-| Método | Rota       | Descrição                              | Acesso |
-| ------ | ---------- | -------------------------------------- | ------ |
-| POST   | `/`        | Cria anúncio (encripta credenciais)    | SELLER |
-| GET    | `/{token}` | Busca anúncio por token público        | Público |
-| PUT    | `/{id}`    | Atualiza anúncio (dono)                | Autenticado |
-| DELETE | `/{id}`    | Cancela anúncio (dono)                 | Autenticado |
+| Método | Rota                 | Descrição                              | Acesso |
+| ------ | -------------------- | -------------------------------------- | ------ |
+| POST   | `/`                  | Cria anúncio (encripta credenciais)    | SELLER |
+| GET    | `/{token}`           | Busca anúncio por token público        | Público |
+| PUT    | `/{id}`              | Atualiza anúncio (dono)                | SELLER |
+| DELETE | `/{id}`              | Cancela anúncio (dono)                 | SELLER |
+| POST   | `/{id}/cancel-reservation` | Cancela reserva e transação pendente | SELLER |
 
 ### Transações (`/api/transactions`)
 
 | Método | Rota                 | Descrição                                       | Acesso |
 | ------ | -------------------- | ----------------------------------------------- | ------ |
 | POST   | `/`                  | Inicia transação e cria cobrança Pix            | BUYER |
-| GET    | `/{id}`              | Busca transação com pagamento                    | Autenticado |
+| GET    | `/{id}`              | Busca transação com pagamento (participante/admin) | Autenticado |
 | GET    | `/{id}/credentials`  | Libera credenciais do produto após pagamento    | BUYER |
+| POST   | `/{id}/confirm`      | Confirma recebimento e libera o valor no escrow | BUYER |
 
 ### Disputas (`/api/disputes`)
 
 | Método | Rota            | Descrição                              | Acesso |
 | ------ | --------------- | -------------------------------------- | ------ |
 | POST   | `/`             | Abre disputa (comprador/vendedor)      | Autenticado |
-| PUT    | `/{id}/resolve` | Resolve disputa (release ou refund)    | Autenticado |
+| PUT    | `/{id}/resolve` | Resolve disputa (release ou refund)    | ADMIN |
 
 ### Mensagens de disputa (`/api/disputes/{disputeId}/messages`)
 
@@ -113,12 +119,15 @@ Cobranças Pix pendentes que passam do prazo de validade são canceladas pelo sc
 
 ### Administração (`/api/admin`)
 
-| Método | Rota             | Descrição                                   | Acesso |
-| ------ | ---------------- | ------------------------------------------- | ------ |
-| GET    | `/users`         | Lista usuários                              | ADMIN |
-| GET    | `/transactions`  | Lista transações (filtro por status)        | ADMIN |
-| GET    | `/disputes`      | Lista disputas                              | ADMIN |
-| GET    | `/payments`      | Lista pagamentos (filtro por status)        | ADMIN |
+| Método | Rota                            | Descrição                                   | Acesso |
+| ------ | ------------------------------- | ------------------------------------------- | ------ |
+| GET    | `/users`                        | Lista usuários                              | ADMIN |
+| GET    | `/transactions`                 | Lista transações (filtro por status)        | ADMIN |
+| GET    | `/disputes`                     | Lista disputas                              | ADMIN |
+| GET    | `/payments`                     | Lista pagamentos (filtro por status)        | ADMIN |
+| POST   | `/transactions/{id}/cancel`     | Cancela transação pendente                  | ADMIN |
+| POST   | `/transactions/{id}/refund`     | Reembolsa transação aprovada/em disputa     | ADMIN |
+| POST   | `/payments/{id}/cancel`         | Cancela pagamento                           | ADMIN |
 
 ### Webhooks (`/api/webhooks`)
 
@@ -131,8 +140,9 @@ Documentação interativa em `/swagger-ui.html` quando o profile `dev` estiver a
 ## Estados do domínio
 
 - **Anúncio**: `DRAFT` → `ACTIVE` → `RESERVED` → `SOLD` / `CANCELLED`
-- **Transação**: `PENDING` → `APPROVED` → `DISPUTED` → `RELEASED` / `REFUNDED`
+- **Transação**: `PENDING` → `APPROVED` → `DISPUTED` → `RELEASED` / `REFUNDED` / `CANCELLED`
 - **Pagamento**: `PENDING` → `APPROVED` / `REJECTED` / `CANCELLED` / `REFUNDED` / `EXPIRED`
+- **Evento de webhook**: `RECEIVED` → `PROCESSED` / `FAILED`
 
 As transições são encapsuladas em métodos de domínio nas entidades (ex.: `announcement.reserve()`, `transaction.approve()`), validando o estado atual antes de avançar.
 
@@ -173,12 +183,18 @@ As credenciais do SDK são configuradas por `mercadopago.access-token` e `mercad
 
 O scheduler de expiração lê `payment.expiration-check-interval-ms` (env: `PAYMENT_EXPIRATION_CHECK_INTERVAL_MS`). No profile `dev` o padrão é `3600000` (1h); em produção, defina via variável de ambiente.
 
+### Retry de webhooks
+
+O scheduler de reprocessamento de webhooks com falha lê `payment.webhook-retry-interval-ms` (env: `PAYMENT_WEBHOOK_RETRY_INTERVAL_MS`). No profile `dev` o padrão é `300000` (5 min); em produção, defina via variável de ambiente.
+
 ### Administração
 
 Os endpoints `/api/admin` exigem o papel `ADMIN`. Em `dev`, os usuários são criados com os papéis `BUYER` e `SELLER`; promova um usuário a `ADMIN` diretamente no banco para testar os endpoints.
 
 ## Próximos Passos
 
+- **Rate limiting no login** para mitigar ataques de força bruta.
+- **Opção para alteração de senha** pelo usuário autenticado.
 - Cancelamento de reservas quando o anúncio for excluído.
 - Notificações por e-mail de eventos de pagamento e disputa.
 - Paginação e filtros nos endpoints de listagem.
