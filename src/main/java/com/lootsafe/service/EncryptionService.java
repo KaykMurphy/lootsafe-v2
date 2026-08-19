@@ -1,23 +1,26 @@
 package com.lootsafe.service;
 
-import lombok.AllArgsConstructor;
-import org.springframework.security.crypto.encrypt.TextEncryptor;
+import com.lootsafe.exception.EncryptionException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.encrypt.BytesEncryptor;
 import org.springframework.stereotype.Service;
 
-import com.lootsafe.exception.EncryptionException;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Service
 public class EncryptionService {
 
     private static final String MSG_ENCRYPTION_FAILURE = "Falha ao criptografar os dados.";
     private static final String MSG_DECRYPTION_FAILURE = "Falha ao descriptografar os dados.";
 
-    private final TextEncryptor textEncryptor;
+    private final BytesEncryptor bytesEncryptor;
 
     public String encrypt(String plainText) {
         try {
-            return textEncryptor.encrypt(plainText);
+            byte[] encrypted = bytesEncryptor.encrypt(plainText.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(encrypted);
         } catch (Exception e) {
             throw new EncryptionException(MSG_ENCRYPTION_FAILURE);
         }
@@ -25,11 +28,11 @@ public class EncryptionService {
 
     public String decrypt(String encryptedText) {
         try {
-            return textEncryptor.decrypt(encryptedText);
+            byte[] decoded = Base64.getDecoder().decode(encryptedText);
+            byte[] decrypted = bytesEncryptor.decrypt(decoded);
+            return new String(decrypted, StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw new EncryptionException(MSG_DECRYPTION_FAILURE);
         }
     }
-
-
 }
