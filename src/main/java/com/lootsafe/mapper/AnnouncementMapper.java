@@ -12,10 +12,10 @@ public interface AnnouncementMapper {
 
     AnnouncementResponseDTO toResponse(Announcement announcement);
 
-    @Mapping(target = "credentialsEncrypted", source = "credentials")
+    @Mapping(target = "credentialsEncrypted", ignore = true)
     Announcement toEntity(AnnouncementRequestDTO request);
 
-    @Mapping(target = "credentialsEncrypted", source = "credentials")
+    @Mapping(target = "credentialsEncrypted", ignore = true)
     void updateEntity(@MappingTarget Announcement target,
                       AnnouncementRequestDTO request);
 

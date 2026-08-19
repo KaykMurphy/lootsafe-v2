@@ -1,5 +1,6 @@
 package com.lootsafe.dto.request;
 
+import jakarta.persistence.Column;
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
@@ -16,6 +17,7 @@ public record AnnouncementRequestDTO(
         String credentials,
 
         @Size(max = 1000)
+        @Column(nullable = false)
         String notes,
 
         @NotBlank

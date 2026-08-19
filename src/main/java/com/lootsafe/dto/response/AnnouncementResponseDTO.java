@@ -12,7 +12,6 @@ public record AnnouncementResponseDTO(
         String title,
         String description,
         String notes,
-        String pixKey,
         String token,
         BigDecimal price,
         AnnouncementStatus status,
