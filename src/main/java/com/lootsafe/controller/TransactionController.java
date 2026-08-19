@@ -31,8 +31,9 @@ public class TransactionController {
     }
 
     @GetMapping("/{id}")
-    public TransactionResponseDTO getTransactionById(@PathVariable UUID id) {
-        return transactionService.getTransactionById(id);
+    public TransactionResponseDTO getTransactionForUser(@PathVariable UUID id,
+                                                     @AuthenticationPrincipal UUID currentUserId) {
+        return transactionService.getTransactionForUser(id, currentUserId);
     }
 
     @ResponseStatus(HttpStatus.OK)

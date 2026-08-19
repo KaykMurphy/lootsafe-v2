@@ -63,8 +63,10 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public UserResponseDTO getUserById(@PathVariable UUID id) {
-        return userService.getUserById(id);
+    public UserResponseDTO getUserById(@PathVariable UUID id,
+                                       @AuthenticationPrincipal UUID currentUserId) {
+
+        return userService.getUserForUser(id, currentUserId);
     }
 
     @PutMapping("/{id}")

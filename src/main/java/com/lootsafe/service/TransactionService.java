@@ -9,6 +9,7 @@ import com.lootsafe.entity.User;
 import com.lootsafe.enums.AnnouncementStatus;
 import com.lootsafe.enums.PaymentStatus;
 import com.lootsafe.enums.TransactionStatus;
+import com.lootsafe.enums.UserRole;
 import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.ResourceNotFoundException;
 import com.lootsafe.exception.UnauthorizedException;
@@ -34,7 +35,9 @@ public class TransactionService {
             "Você não pode comprar seu próprio anúncio.";
     private static final String MSG_TRANSACTION_NOT_FOUND = "Transação não encontrada.";
 
-    private static final String MGG_UNATHORIZED_USER = "Você não é o comprador desta transação";
+    private static final String MSG_UNAUTHORIZED_USER = "Você não é o comprador desta transação";
+
+    private static final String MSG_UNAUTHORIZED_ACCESS = "Você não tem permissão para acessar esta transação.";
 
     private static final String MSG_TRANSACTION_CANNOT_BE_REFUNDED =
             "A transação só pode ser reembolsada quando estiver aprovada ou em disputa.";
@@ -47,7 +50,6 @@ public class TransactionService {
 
     private static final String MSG_ANNOUNCEMENT_NOT_FOUND =
             "Anúncio não encontrado ou link inválido.";
-
 
     private final TransactionRepository transactionRepository;
     private final AnnouncementRepository announcementRepository;
@@ -157,6 +159,24 @@ public class TransactionService {
         return buildResponse(transaction, paymentDTO);
     }
 
+    public TransactionResponseDTO getTransactionForUser(UUID id, UUID userId) {
+        Transaction transaction = findEntityById(id);
+        User user = userService.findEntityById(userId);
+
+        boolean isBuyer = transaction.getBuyer().getId().equals(userId);
+        boolean isSeller = transaction.getSeller().getId().equals(userId);
+        boolean isAdmin = user.hasRole(UserRole.ADMIN);
+
+        if (!isBuyer && !isSeller && !isAdmin) {
+            throw new UnauthorizedException(MSG_UNAUTHORIZED_ACCESS);
+        }
+
+        Payment payment = paymentService.findLatestPayment(transaction.getId());
+        PaymentResponseDTO paymentDTO = payment == null ? null : paymentMapper.toResponse(payment);
+
+        return buildResponse(transaction, paymentDTO);
+    }
+
     public Transaction findEntityById(UUID id) {
         return transactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_TRANSACTION_NOT_FOUND));
@@ -167,7 +187,7 @@ public class TransactionService {
         Transaction transaction = findEntityById(transactionId);
 
         if (!transaction.getBuyer().getId().equals(buyerId)) {
-            throw new UnauthorizedException(MGG_UNATHORIZED_USER);
+            throw new UnauthorizedException(MSG_UNAUTHORIZED_USER);
         }
 
         transaction.confirmReceipt();

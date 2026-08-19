@@ -6,6 +6,7 @@ import com.lootsafe.entity.User;
 import com.lootsafe.enums.UserRole;
 import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.ResourceNotFoundException;
+import com.lootsafe.exception.UnauthorizedException;
 import com.lootsafe.mapper.UserMapper;
 import com.lootsafe.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,8 @@ public class UserService {
     private static final String MSG_USER_NOT_FOUND = "Usuário não encontrado.";
     private static final String MSG_EMAIL_IN_USE = "Email em uso";
     private static final String MSG_INVALID_CREDENTIALS = "Credenciais inválidas";
+    private static final String MSG_UNAUTHORIZED_ACCESS =
+            "Você não tem permissão para acessar este recurso.";
 
     @Transactional
     public UserResponseDTO createUser(UserRequestDTO dto) {
@@ -48,6 +51,16 @@ public class UserService {
 
         return userMapper.toResponse(savedUser);
     }
+
+    public UserResponseDTO getUserForUser(UUID id, UUID currentUserId) {
+        User currentUser = findEntityById(currentUserId);
+        if (!id.equals(currentUserId) && !currentUser.hasRole(UserRole.ADMIN)) {
+            throw new UnauthorizedException(MSG_UNAUTHORIZED_ACCESS);
+        }
+        User target = findEntityById(id);
+        return userMapper.toResponse(target);
+    }
+
 
     public UserResponseDTO authenticateAndReturnUser(String email, String rawPassword) {
 
