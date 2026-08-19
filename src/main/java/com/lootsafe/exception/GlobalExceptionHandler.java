@@ -4,23 +4,38 @@ import com.lootsafe.dto.response.ErrorResponse;
 import com.lootsafe.dto.response.ValidationErrorResponse;
 import com.mercadopago.exceptions.MPInvalidWebhookSignatureException;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.List;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, HttpServletRequest request) {
+        log.error("Erro interno inesperado: ", ex);
+
+        HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
+        ErrorResponse error = new ErrorResponse(
+                status.value(),
+                status.getReasonPhrase(),
+                "Ocorreu um erro interno inesperado. Tente novamente mais tarde.",
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.status(status).body(error);
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex,
-                                                                HttpServletRequest request){
+                                                                HttpServletRequest request) {
 
         HttpStatus status = HttpStatus.NOT_FOUND;
         ErrorResponse error = new ErrorResponse(
@@ -30,13 +45,12 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
 
-        return ResponseEntity.status(status).body(error); //404
-
+        return ResponseEntity.status(status).body(error);
     }
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException ex,
-                                                        HttpServletRequest request){
+                                                        HttpServletRequest request) {
 
         HttpStatus status = HttpStatus.BAD_REQUEST;
 
@@ -47,8 +61,7 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
 
-        return ResponseEntity.status(status).body(error); //400
-
+        return ResponseEntity.status(status).body(error);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -66,7 +79,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ErrorResponse> handleUnautrorized(UnauthorizedException ex,
-                                                            HttpServletRequest request){
+                                                            HttpServletRequest request) {
 
         HttpStatus status = HttpStatus.FORBIDDEN;
 
@@ -77,8 +90,7 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
 
-        return ResponseEntity.status(status).body(error); //403
-
+        return ResponseEntity.status(status).body(error);
     }
 
     @ExceptionHandler(MPInvalidWebhookSignatureException.class)
@@ -99,12 +111,12 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
 
-        return ResponseEntity.status(status).body(error); //502
+        return ResponseEntity.status(status).body(error);
     }
 
     @ExceptionHandler(EncryptionException.class)
     public ResponseEntity<ErrorResponse> hadnleEncryption(EncryptionException ex,
-                                                          HttpServletRequest request){
+                                                          HttpServletRequest request) {
 
         HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
 
@@ -116,8 +128,7 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
 
-        return ResponseEntity.status(status).body(error); // 500
-
+        return ResponseEntity.status(status).body(error);
     }
 
 
@@ -139,6 +150,6 @@ public class GlobalExceptionHandler {
                 fieldErrors,
                 request.getRequestURI()
         );
-        return ResponseEntity.status(status).body(response); // 400 valid
+        return ResponseEntity.status(status).body(response);
     }
 }
