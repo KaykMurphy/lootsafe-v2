@@ -1,0 +1,1 @@
+ALTER TABLE payment_webhook_events ADD CONSTRAINT uc_payment_webhook_events_external_event_id UNIQUE (external_event_id);
