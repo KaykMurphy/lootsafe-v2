@@ -6,6 +6,7 @@ import com.lootsafe.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -18,6 +19,7 @@ public class PaymentExpirationService {
     private final PaymentRepository paymentRepository;
     private final TransactionService transactionService;
 
+    @Transactional
     public void expirePendingPayments() {
 
         List<Payment> expiredPayments = paymentRepository.findByStatusAndExpiresAtBefore(
