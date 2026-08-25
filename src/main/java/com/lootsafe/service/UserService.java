@@ -1,5 +1,6 @@
 package com.lootsafe.service;
 
+import com.lootsafe.dto.request.LogoutRequestDTO;
 import com.lootsafe.dto.request.UserRequestDTO;
 import com.lootsafe.dto.response.UserResponseDTO;
 import com.lootsafe.entity.User;
@@ -8,8 +9,10 @@ import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.ResourceNotFoundException;
 import com.lootsafe.exception.UnauthorizedException;
 import com.lootsafe.mapper.UserMapper;
+import com.lootsafe.repository.RefreshTokenRepository;
 import com.lootsafe.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +21,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -26,6 +30,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     private static final String MSG_USER_NOT_FOUND = "Usuário não encontrado.";
     private static final String MSG_EMAIL_IN_USE = "Email em uso";
@@ -50,6 +55,15 @@ public class UserService {
         User savedUser = userRepository.save(user);
 
         return userMapper.toResponse(savedUser);
+    }
+
+    @Transactional
+    public void logout(LogoutRequestDTO request, UUID currentUserId) {
+
+        refreshTokenRepository.deleteByToken(request.refreshToken());
+
+        log.info("Logout realizado e tokens revogados para o usuário ID: {}", currentUserId);
+
     }
 
     public UserResponseDTO getUserForUser(UUID id, UUID currentUserId) {

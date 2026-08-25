@@ -15,4 +15,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
 
     void deleteByUser(User user);
 
+    void deleteByToken(String token);
+
+
 }

@@ -1,6 +1,7 @@
 package com.lootsafe.controller;
 
 import com.lootsafe.dto.request.LoginRequestDTO;
+import com.lootsafe.dto.request.LogoutRequestDTO;
 import com.lootsafe.dto.request.TokenRefreshRequestDTO;
 import com.lootsafe.dto.request.UserRequestDTO;
 import com.lootsafe.dto.response.TokenResponse;
@@ -75,5 +76,16 @@ public class UserController {
                                       @RequestBody @Valid UserRequestDTO request,
                                       @AuthenticationPrincipal UUID currentUserId) {
         return userService.updateUser(id, request);
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ResponseEntity<Void> logout(
+            @AuthenticationPrincipal UUID currentUserId,
+            @RequestBody LogoutRequestDTO request ) {
+
+        userService.logout(request, currentUserId);
+
+        return ResponseEntity.noContent().build();
     }
 }
