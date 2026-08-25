@@ -17,4 +17,8 @@ public interface PaymentWebhookEventRepository extends JpaRepository<PaymentWebh
     List<PaymentWebhookEvent> findByStatus(WebhookEventStatus status);
 
     boolean existsByExternalEventId(String externalEventId);
+
+    List<PaymentWebhookEvent> findTop50ByStatusOrderByCreatedAtAsc(
+            WebhookEventStatus status
+    );
 }

@@ -6,6 +6,7 @@ import com.lootsafe.payment.service.WebhookProcessorService;
 import com.lootsafe.repository.PaymentWebhookEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -20,8 +21,11 @@ public class WebhookRetryScheduler {
     private final WebhookProcessorService webhookProcessorService;
 
     @Scheduled(fixedDelayString = "${payment.webhook-retry-interval-ms:300000}")
+    @SchedulerLock(name = "retryFailedWebhooksLock", lockAtLeastFor = "30s", lockAtMostFor = "10m")
     public void retryFailedWebhooks() {
-        List<PaymentWebhookEvent> failedEvents = paymentWebhookEventRepository.findByStatus(WebhookEventStatus.FAILED);
+
+        List<PaymentWebhookEvent> failedEvents = paymentWebhookEventRepository
+                .findTop50ByStatusOrderByCreatedAtAsc(WebhookEventStatus.FAILED);
 
         if (failedEvents.isEmpty()) {
             return;
@@ -32,7 +36,11 @@ public class WebhookRetryScheduler {
         for (PaymentWebhookEvent event : failedEvents) {
             log.info("Reprocessando evento: {}", event.getId());
 
-            webhookProcessorService.processOrder(event.getExternalEventId(), event.getId());
+            try {
+                webhookProcessorService.processOrder(event.getExternalEventId(), event.getId());
+            } catch (Exception e) {
+                log.error("Erro ao reprocessar o evento {}: {}", event.getId(), e.getMessage());
+            }
         }
     }
 }
