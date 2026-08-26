@@ -20,6 +20,9 @@ Assim como a versão original, a API intermedia transações digitais com pagame
 - Chat dentro das disputas com envio e listagem de mensagens por participantes ou admin.
 - Expiração automática de cobranças Pix pendentes via scheduler.
 - Webhooks do Mercado Pago persistidos e **deduplicados** (`PaymentWebhookEvent`) para rastreabilidade, com reprocessamento automático de eventos com falha via scheduler.
+- **Segurança Avançada:** Rate Limiting (Bucket4j), Sanitização de XSS, Política de senhas fortes, Endpoint de Logout com blacklist de tokens e Headers de Proxy Reverso configurados.
+- **Resiliência:** Lock distribuído com **ShedLock** e health checks de monitoramento ativos (**Actuator**).
+- **Infraestrutura:** Docker Multi-stage build (Temurin 21) e docker-compose.yml pronto para produção (validação *Fail-Fast*).
 - Confirmação de recebimento pelo comprador (liberação do valor no escrow) e cancelamento de reserva pelo vendedor.
 - Operações administrativas além de listagem: cancelar transação, reembolsar transação/pagamento e cancelar pagamento.
 - Endpoints administrativos protegidos para o papel `ADMIN`; acesso a usuário e transação restrito ao dono ou admin.
@@ -33,12 +36,15 @@ Assim como a versão original, a API intermedia transações digitais com pagame
 - Spring Security + OAuth2 Resource Server (JWT)
 - Spring Validation
 - Spring Boot Actuator
+- Bucket4j (Rate Limiting)
+- ShedLock (Distributed Locks)
 - Flyway
 - PostgreSQL
 - H2 (testes)
 - Mercado Pago SDK (`com.mercadopago:sdk-java`)
 - MapStruct 1.6.3
 - Lombok
+- Docker & Docker Compose
 - Maven Wrapper
 
 ## Estrutura do Projeto
@@ -153,6 +159,13 @@ As transições são encapsuladas em métodos de domínio nas entidades (ex.: `a
 
 ## Como executar
 
+**Para Produção (via Docker Compose):**
+É necessário configurar o seu `.env` com todas as chaves (consulte a raiz do projeto).
+```bash
+docker compose up -d --build
+```
+
+**Para Desenvolvimento Local:**
 ```bash
 # 1. Suba o banco de desenvolvimento (PostgreSQL na porta 5435)
 docker compose -f docker-compose-dev.yml up -d
@@ -165,40 +178,34 @@ No profile `dev`, o Flyway aplica as migrações automaticamente ao subir a apli
 
 ## Configuração
 
-As credenciais do banco local estão em `application-dev.properties` (usuário/senha `escrow`). Para produção, as credenciais são injetadas via variáveis de ambiente e o arquivo `.env` é ignorado pelo Git.
+As credenciais do banco local estão em `application-dev.properties` (usuário/senha `escrow`). Para produção, as credenciais são injetadas via variáveis de ambiente e o arquivo `.env` é ignorado pelo Git (validação com sintaxe Fail-Fast no `docker-compose.yml`).
 
-### JWT
+### Segurança (JWT, XSS e Rate Limit)
 
-No profile `dev`, `jwt.secret`, `jwt.expirationMs` (15 min) e `jwt.refreshExpirationMs` (7 dias) têm valores padrão. Em produção, defina via variáveis de ambiente.
+No profile `dev`, `jwt.secret` e expirações têm valores padrão. Em produção, defina via variáveis de ambiente. Todas as requisições públicas sensíveis (como Login e Webhooks) possuem **Rate Limiting** via Bucket4j, e os DTOs bloqueiam caracteres nocivos de injeção XSS nas Strings.
 
 ### Encriptação
 
-As credenciais dos anúncios são encriptadas com AES/GCM via `EncryptionConfig`. No profile `dev` há valores padrão (`encryption.password=dev-password` e `encryption.salt=deadbeefdeadbeef`). Em produção, defina `encryption.password` e `encryption.salt` (salt em hexadecimal de 16 bytes) via variáveis de ambiente.
+As credenciais dos anúncios são encriptadas com AES/GCM via `EncryptionConfig`. No profile `dev` há valores padrão (`encryption.password=dev-password` e `encryption.salt=deadbeefdeadbeef`). Em produção, defina via `.env`.
 
 ### Mercado Pago
 
-As credenciais do SDK são configuradas por `mercadopago.access-token` e `mercadopago.webhook-secret`. No profile `dev` há valores temporários; em produção, defina as variáveis `MERCADOPAGO_ACCESS_TOKEN` e `MERCADOPAGO_WEBHOOK_SECRET`.
+As credenciais do SDK são configuradas por `mercadopago.access-token` e `mercadopago.webhook-secret`.
 
-### Expiração de pagamentos
+### Schedulers (Expiração e Retrys)
 
-O scheduler de expiração lê `payment.expiration-check-interval-ms` (env: `PAYMENT_EXPIRATION_CHECK_INTERVAL_MS`). No profile `dev` o padrão é `3600000` (1h); em produção, defina via variável de ambiente.
-
-### Retry de webhooks
-
-O scheduler de reprocessamento de webhooks com falha lê `payment.webhook-retry-interval-ms` (env: `PAYMENT_WEBHOOK_RETRY_INTERVAL_MS`). No profile `dev` o padrão é `300000` (5 min); em produção, defina via variável de ambiente.
+Os agendamentos (Scheduler de pagamentos Pix e Retry de Webhooks com falha) usam **ShedLock** para evitar que múltiplas instâncias rodem o mesmo script em concorrência, travando o banco por 10 minutos ou conforme configurado no banco.
 
 ### Administração
 
-Os endpoints `/api/admin` exigem o papel `ADMIN`. Em `dev`, os usuários são criados com os papéis `BUYER` e `SELLER`; promova um usuário a `ADMIN` diretamente no banco para testar os endpoints.
+Os endpoints `/api/admin` exigem o papel `ADMIN`. Em `dev`, promova um usuário a `ADMIN` diretamente no banco para testar os endpoints.
 
 ## Próximos Passos
 
-- **Rate limiting no login** para mitigar ataques de força bruta.
-- **Opção para alteração de senha** pelo usuário autenticado.
+- **Testes automatizados de integração:** Foco no Webhook e Criação do Pix via MockMvc.
 - Cancelamento de reservas quando o anúncio for excluído.
 - Notificações por e-mail de eventos de pagamento e disputa.
 - Paginação e filtros nos endpoints de listagem.
-- Testes automatizados de integração.
 
 ## Licença
 
