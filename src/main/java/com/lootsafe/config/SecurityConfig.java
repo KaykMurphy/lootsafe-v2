@@ -59,6 +59,7 @@ public class SecurityConfig {
                             .requestMatchers(HttpMethod.POST, "/api/announcements").hasRole("SELLER")
                             .requestMatchers(HttpMethod.POST, "/api/transactions").hasRole("BUYER")
                             .requestMatchers(HttpMethod.POST, "/api/webhooks/mercadopago").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                             .anyRequest().authenticated();
                 })
                 .oauth2ResourceServer(oauth2 -> oauth2
