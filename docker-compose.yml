@@ -1,0 +1,70 @@
+name: lootsafe-prod
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: lootsafe-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:?A variavel DB_NAME nao foi definida ou esta vazia no .env}
+      POSTGRES_USER: ${DB_USERNAME:?A variavel DB_USERNAME nao foi definida ou esta vazia no .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?A variavel DB_PASSWORD nao foi definida ou esta vazia no .env}
+    ports:
+      - "${DB_PORT:?A variavel DB_PORT nao foi definida ou esta vazia no .env}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lootsafe_net
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lootsafe-api:latest
+    container_name: lootsafe-api
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:?A variavel SPRING_PROFILES_ACTIVE nao foi definida ou esta vazia no .env}
+      - DB_URL=jdbc:postgresql://db:5432/${DB_NAME}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET:?A variavel JWT_SECRET nao foi definida ou esta vazia no .env}
+      - JWT_EXPIRATION_MS=${JWT_EXPIRATION_MS:?A variavel JWT_EXPIRATION_MS nao foi definida ou esta vazia no .env}
+      - JWT_REFRESH_EXPIRATION_MS=${JWT_REFRESH_EXPIRATION_MS:?A variavel JWT_REFRESH_EXPIRATION_MS nao foi definida ou esta vazia no .env}
+      - ENCRYPTION_PASSWORD=${ENCRYPTION_PASSWORD:?A variavel ENCRYPTION_PASSWORD nao foi definida ou esta vazia no .env}
+      - ENCRYPTION_SALT=${ENCRYPTION_SALT:?A variavel ENCRYPTION_SALT nao foi definida ou esta vazia no .env}
+      - MERCADOPAGO_ACCESS_TOKEN=${MERCADOPAGO_ACCESS_TOKEN:?A variavel MERCADOPAGO_ACCESS_TOKEN nao foi definida ou esta vazia no .env}
+      - MERCADOPAGO_WEBHOOK_SECRET=${MERCADOPAGO_WEBHOOK_SECRET:?A variavel MERCADOPAGO_WEBHOOK_SECRET nao foi definida ou esta vazia no .env}
+      - API_CORS_ALLOWED_ORIGINS=${API_CORS_ALLOWED_ORIGINS:?A variavel API_CORS_ALLOWED_ORIGINS nao foi definida ou esta vazia no .env}
+      - PAYMENT_PIX_VALIDITY_HOURS=${PAYMENT_PIX_VALIDITY_HOURS:?A variavel PAYMENT_PIX_VALIDITY_HOURS nao foi definida ou esta vazia no .env}
+      - PAYMENT_EXPIRATION_CHECK_INTERVAL_MS=${PAYMENT_EXPIRATION_CHECK_INTERVAL_MS:?A variavel PAYMENT_EXPIRATION_CHECK_INTERVAL_MS nao foi definida ou esta vazia no .env}
+    ports:
+      - "${API_PORT:?A variavel API_PORT nao foi definida ou esta vazia no .env}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    networks:
+      - lootsafe_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data:
+
+networks:
+  lootsafe_net:
+    driver: bridge
