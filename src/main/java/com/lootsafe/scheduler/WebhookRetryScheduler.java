@@ -23,6 +23,7 @@ public class WebhookRetryScheduler {
     @Scheduled(fixedDelayString = "${payment.webhook-retry-interval-ms:300000}")
     @SchedulerLock(name = "retryFailedWebhooksLock", lockAtLeastFor = "30s", lockAtMostFor = "10m")
     public void retryFailedWebhooks() {
+        log.info("Buscando lote (máx 50) de webhooks pendentes para reprocessar...");
 
         List<PaymentWebhookEvent> failedEvents = paymentWebhookEventRepository
                 .findTop50ByStatusOrderByCreatedAtAsc(WebhookEventStatus.FAILED);
