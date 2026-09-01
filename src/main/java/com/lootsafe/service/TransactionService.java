@@ -63,7 +63,7 @@ public class TransactionService {
     public TransactionResponseDTO initiateTransaction(String announcementToken,
                                                       UUID buyerId) {
 
-        Announcement announcement = announcementRepository.findByToken(announcementToken)
+        Announcement announcement = announcementRepository.findByTokenWithLock(announcementToken)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_ANNOUNCEMENT_NOT_FOUND));
 
         if (announcement.getSeller().getId().equals(buyerId)) {
