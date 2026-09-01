@@ -2,6 +2,7 @@ package com.lootsafe.service;
 
 import com.lootsafe.dto.response.CredentialsResponseDTO;
 import com.lootsafe.entity.Transaction;
+import com.lootsafe.enums.TransactionStatus;
 import com.lootsafe.enums.PaymentStatus;
 import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.UnauthorizedException;
@@ -33,7 +34,11 @@ public class DigitalProductDeliveryService {
             throw new UnauthorizedException(MSG_NOT_THE_BUYER);
         }
 
-        if (!transaction.isApproved()) {
+        boolean isEligibleStatus = transaction.getStatus() == TransactionStatus.APPROVED
+                || transaction.getStatus() == TransactionStatus.RELEASED
+                || transaction.getStatus() == TransactionStatus.DISPUTED;
+
+        if (!isEligibleStatus) {
             throw new BusinessException(MSG_CREDENTIALS_NOT_RELEASED);
         }
 
