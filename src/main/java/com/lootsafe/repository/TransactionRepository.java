@@ -14,7 +14,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     Optional<Transaction> findById(UUID id);
 
-    Optional<Transaction> findByAnnouncementId(UUID announcementId);
+    Optional<Transaction> findFirstByAnnouncementIdOrderByCreatedAtDesc(UUID announcementId);
+
+    Optional<Transaction> findFirstByAnnouncementIdAndStatus(UUID announcementId, TransactionStatus status);
+
+    List<Transaction> findByAnnouncementId(UUID announcementId);
 
     List<Transaction> findByStatus(TransactionStatus status);
 

@@ -38,8 +38,8 @@ public class Transaction extends AbstractAuditableEntity{
     @Enumerated(EnumType.STRING)
     private TransactionStatus status;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "announcement_id", unique = true, nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "announcement_id", nullable = false)
     private Announcement announcement;
 
     @ManyToOne(fetch = FetchType.LAZY)

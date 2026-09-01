@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -53,9 +55,8 @@ public class Announcement extends AbstractAuditableEntity {
     )
     private User seller;
 
-    @OneToOne(mappedBy = "announcement", fetch = FetchType.LAZY,
-    cascade = CascadeType.ALL, orphanRemoval = true)
-    private Transaction transaction;
+    @OneToMany(mappedBy = "announcement", fetch = FetchType.LAZY)
+    private List<Transaction> transactions = new ArrayList<>();
 
     public void reserve() {
         if (getStatus() != AnnouncementStatus.ACTIVE) {

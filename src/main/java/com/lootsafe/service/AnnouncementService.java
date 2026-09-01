@@ -113,12 +113,9 @@ public class AnnouncementService {
             throw new BusinessException(MSG_ANNOUNCEMENT_NOT_RESERVED);
         }
 
-        Transaction transaction = transactionRepository.findByAnnouncementId(announcementId)
+        Transaction transaction = transactionRepository
+                .findFirstByAnnouncementIdAndStatus(announcementId, TransactionStatus.PENDING)
                 .orElseThrow(() -> new BusinessException(MSG_TRANSACTION_NOT_FOUND));
-
-        if (transaction.getStatus() != TransactionStatus.PENDING) {
-            throw new BusinessException(MSG_TRANSACTION_NOT_PENDING);
-        }
 
         transactionService.cancelTransaction(transaction.getId());
 
