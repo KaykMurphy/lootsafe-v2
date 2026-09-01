@@ -78,10 +78,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<ErrorResponse> handleUnautrorized(UnauthorizedException ex,
+    public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex,
                                                             HttpServletRequest request) {
 
-        HttpStatus status = HttpStatus.FORBIDDEN;
+        HttpStatus status = HttpStatus.UNAUTHORIZED;
 
         ErrorResponse error = new ErrorResponse(
                 status.value(),
@@ -115,7 +115,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(EncryptionException.class)
-    public ResponseEntity<ErrorResponse> hadnleEncryption(EncryptionException ex,
+    public ResponseEntity<ErrorResponse> handleEncryption(EncryptionException ex,
                                                           HttpServletRequest request) {
 
         HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
