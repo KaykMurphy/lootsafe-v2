@@ -2,6 +2,7 @@ package com.lootsafe.service;
 
 import com.lootsafe.dto.request.LogoutRequestDTO;
 import com.lootsafe.dto.request.UserRequestDTO;
+import com.lootsafe.dto.request.UserUpdateRequestDTO;
 import com.lootsafe.dto.response.UserResponseDTO;
 import com.lootsafe.entity.User;
 import com.lootsafe.enums.UserRole;
@@ -78,7 +79,8 @@ public class UserService {
 
     public UserResponseDTO authenticateAndReturnUser(String email, String rawPassword) {
 
-        User user = findEntityByEmail(email);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(MSG_INVALID_CREDENTIALS));
 
         if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())){
             throw new BusinessException(MSG_INVALID_CREDENTIALS);
@@ -115,7 +117,7 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponseDTO updateUser(UUID id, UserRequestDTO updateUser) {
+    public UserResponseDTO updateUser(UUID id, UserUpdateRequestDTO updateUser) {
         User existingUser = findEntityById(id);
 
         existingUser.setName(updateUser.name());

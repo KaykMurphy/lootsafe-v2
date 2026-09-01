@@ -2,6 +2,7 @@ package com.lootsafe.mapper;
 
 
 import com.lootsafe.dto.request.UserRequestDTO;
+import com.lootsafe.dto.request.UserUpdateRequestDTO;
 import com.lootsafe.dto.response.UserResponseDTO;
 import com.lootsafe.entity.User;
 import org.mapstruct.Mapper;
@@ -23,5 +24,8 @@ public interface UserMapper {
 
     void updateEntity(@MappingTarget User target,
                       UserRequestDTO request);
+
+    void updateFromUpdateDTO(@MappingTarget User target,
+                            UserUpdateRequestDTO request);
 
 }

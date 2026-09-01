@@ -4,6 +4,7 @@ import com.lootsafe.dto.request.LoginRequestDTO;
 import com.lootsafe.dto.request.LogoutRequestDTO;
 import com.lootsafe.dto.request.TokenRefreshRequestDTO;
 import com.lootsafe.dto.request.UserRequestDTO;
+import com.lootsafe.dto.request.UserUpdateRequestDTO;
 import com.lootsafe.dto.response.TokenResponse;
 import com.lootsafe.dto.response.UserResponseDTO;
 import com.lootsafe.entity.RefreshToken;
@@ -73,7 +74,7 @@ public class UserController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.principal.toString()")
     public UserResponseDTO updateUser(@PathVariable UUID id,
-                                      @RequestBody @Valid UserRequestDTO request,
+                                      @RequestBody @Valid UserUpdateRequestDTO request,
                                       @AuthenticationPrincipal UUID currentUserId) {
         return userService.updateUser(id, request);
     }
