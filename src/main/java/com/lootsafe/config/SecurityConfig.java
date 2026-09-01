@@ -55,6 +55,7 @@ public class SecurityConfig {
 
                     auth
                             .requestMatchers(HttpMethod.POST, "/api/users/login", "/api/users/register", "/api/users/refresh").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/announcements/*").permitAll()
                             .requestMatchers("/api/admin/**").hasRole("ADMIN")
                             .requestMatchers(HttpMethod.POST, "/api/announcements").hasRole("SELLER")
                             .requestMatchers(HttpMethod.POST, "/api/transactions").hasRole("BUYER")
