@@ -49,6 +49,9 @@ public class Announcement extends AbstractAuditableEntity {
     @Column(nullable = false)
     private AnnouncementStatus status;
 
+    @Column(nullable = false)
+    private Integer inspectionTimeHours;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "seller_id", nullable = false
@@ -57,6 +60,25 @@ public class Announcement extends AbstractAuditableEntity {
 
     @OneToMany(mappedBy = "announcement", fetch = FetchType.LAZY)
     private List<Transaction> transactions = new ArrayList<>();
+
+
+
+
+    public void validateInspectionTimeLimits(
+            Integer minAllowedHours, Integer maxAllowedHours
+    ) {
+
+
+        if (this.inspectionTimeHours < minAllowedHours ||
+        this.inspectionTimeHours > maxAllowedHours){
+
+            throw new BusinessException(
+                    "O tempo de inspeção escolhido (" + this.inspectionTimeHours + "h) está fora dos limites permitidos. " +
+                            "Deve ser entre " + minAllowedHours + "h e " + maxAllowedHours + "h."
+            );
+        }
+    }
+
 
     public void reserve() {
         if (getStatus() != AnnouncementStatus.ACTIVE) {

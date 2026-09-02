@@ -27,6 +27,10 @@ public record AnnouncementRequestDTO(
         @Pattern(regexp = "^[a-zA-Z0-9@.\\-_]+$", message = "A chave PIX contém caracteres inválidos.")
         String pixKey,
 
+        @Min(2)
+        @Max(72)
+        Integer inspectionTimeHours,
+
         @NotNull
         @DecimalMin("0.01")
         BigDecimal price

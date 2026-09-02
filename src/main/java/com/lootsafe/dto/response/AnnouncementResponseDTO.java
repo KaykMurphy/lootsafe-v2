@@ -17,7 +17,9 @@ public record AnnouncementResponseDTO(
         AnnouncementStatus status,
         UUID sellerId,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+
+        Integer inspectionTimeHours
 
 ) {
 }

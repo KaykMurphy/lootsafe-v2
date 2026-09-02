@@ -20,12 +20,15 @@ import com.lootsafe.repository.AnnouncementRepository;
 import com.lootsafe.repository.PaymentRepository;
 import com.lootsafe.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @RequiredArgsConstructor
 @Service
 @Transactional(readOnly = true)
@@ -58,11 +61,10 @@ public class TransactionService {
     private final PaymentService paymentService;
     private final PaymentMapper paymentMapper;
     private final PaymentRepository paymentRepository;
+    private final FeeCalculationService feeCalculationService;
 
     @Transactional
-    public TransactionResponseDTO initiateTransaction(String announcementToken,
-                                                      UUID buyerId) {
-
+    public TransactionResponseDTO initiateTransaction(String announcementToken, UUID buyerId) {
         Announcement announcement = announcementRepository.findByTokenWithLock(announcementToken)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_ANNOUNCEMENT_NOT_FOUND));
 
@@ -78,6 +80,11 @@ public class TransactionService {
         transaction.setSeller(announcement.getSeller());
         transaction.setAmount(announcement.getPrice());
         transaction.setStatus(TransactionStatus.PENDING);
+
+        transaction.setInspectionTimeHours(announcement.getInspectionTimeHours());
+
+        BigDecimal platformFee = feeCalculationService.calculatePlatformFee(transaction.getAmount());
+        transaction.applyFees(platformFee);
 
         announcement.reserve();
 
@@ -194,6 +201,10 @@ public class TransactionService {
 
         Transaction savedTransaction = transactionRepository.save(transaction);
 
+        log.info("Comprador={} confirmou recebimento antecipado da transacao={}. Liberando escrow.",
+                buyerId, transactionId);
+
+
         Payment payment = paymentService.findLatestPayment(savedTransaction.getId());
         PaymentResponseDTO paymentDTO = payment == null ? null : paymentMapper.toResponse(payment);
 
@@ -212,7 +223,11 @@ public class TransactionService {
                 base.amount(),
                 base.createdAt(),
                 base.updatedAt(),
-                paymentResponse
+                paymentResponse,
+                base.inspectionTimeHours(),
+                base.netAmount(),
+                base.payoutStatus(),
+                base.payoutPaidAt()
         );
     }
 }

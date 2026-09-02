@@ -1,5 +1,6 @@
 package com.lootsafe.dto.response;
 
+import com.lootsafe.enums.PayoutStatus;
 import com.lootsafe.enums.TransactionStatus;
 
 import java.math.BigDecimal;
@@ -16,7 +17,12 @@ public record TransactionResponseDTO(
         BigDecimal amount,
         Instant createdAt,
         Instant updatedAt,
-        PaymentResponseDTO payment
+        PaymentResponseDTO payment,
+
+        Integer inspectionTimeHours,
+        BigDecimal netAmount,
+        PayoutStatus payoutStatus,
+        String payoutPaidAt
 
 ) {
 }

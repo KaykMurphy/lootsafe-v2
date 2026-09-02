@@ -1,11 +1,14 @@
 package com.lootsafe.entity;
 
+import com.lootsafe.enums.PayoutStatus;
 import com.lootsafe.enums.TransactionStatus;
 import com.lootsafe.exception.BusinessException;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 
 /**
  * Representa o núcleo financeiro da plataforma (Escrow).
@@ -32,6 +35,9 @@ public class Transaction extends AbstractAuditableEntity{
     private static final String MSG_ONLY_APPROVED_CAN_BE_CONFIRMED =
             "A transação só pode ser confirmada quando aprovada.";
 
+    private static final String MSG_INSPECTION_HOURS_MUST_BE_POSITIVE =
+            "A quantidade de horas para inspeção deve ser maior que zero.";
+
     @Column(precision = 10, scale = 2)
     private BigDecimal amount;
 
@@ -54,6 +60,34 @@ public class Transaction extends AbstractAuditableEntity{
             cascade = CascadeType.ALL, orphanRemoval = true)
     private DisputeChat dispute;
 
+
+    @Column(name = "inspection_time_hours")
+    private Integer inspectionTimeHours;
+
+    @Column(name = "inspection_expires_at")
+    private Instant inspectionExpiresAt;
+
+    @Column(name = "platform_fee", precision = 10, scale = 2)
+    private BigDecimal platformFee;
+
+    @Column(name = "net_amount", precision = 10, scale = 2)
+    private BigDecimal netAmount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payout_status", length = 30)
+    private PayoutStatus payoutStatus = PayoutStatus.NOT_APPLICABLE;
+
+    @Column(name = "payout_external_id")
+    private String payoutExternalId;
+
+    @Column(name = "payout_paid_at")
+    private Instant payoutPaidAt;
+
+    @Column(name = "payout_failure_reason", columnDefinition = "TEXT")
+    private String payoutFailureReason;
+
+
+
     public boolean isPending() {
         return getStatus() == TransactionStatus.PENDING;
     }
@@ -61,6 +95,27 @@ public class Transaction extends AbstractAuditableEntity{
     public boolean isApproved() {
         return getStatus() == TransactionStatus.APPROVED;
     }
+
+    public void startInspectionWindow(int hours) {
+        if (hours <= 0) {
+            throw new BusinessException(MSG_INSPECTION_HOURS_MUST_BE_POSITIVE);
+        }
+        this.inspectionTimeHours = hours;
+        this.inspectionExpiresAt = Instant.now().plus(Duration.ofHours(hours));
+    }
+
+    public boolean isInspectionExpired() {
+        return this.inspectionExpiresAt != null && this.inspectionExpiresAt.isBefore(Instant.now());
+    }
+
+    public void pauseInspectionWindow() {
+
+        inspectionExpiresAt = null;
+
+    }
+
+
+
 
     public void approve() {
         if (getStatus() == TransactionStatus.APPROVED) {
@@ -93,7 +148,27 @@ public class Transaction extends AbstractAuditableEntity{
         }
 
         setStatus(TransactionStatus.RELEASED);
+        this.payoutStatus = PayoutStatus.PENDING;
     }
+
+
+    public void applyFees(BigDecimal feeAmount) {
+        if (feeAmount == null || feeAmount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BusinessException("O valor da taxa da plataforma deve ser informado e não pode ser negativo.");
+        }
+
+        if (this.amount == null) {
+            throw new BusinessException("O valor total da transação deve estar definido para aplicar taxas.");
+        }
+
+        if (feeAmount.compareTo(this.amount) > 0) {
+            throw new BusinessException("A taxa da plataforma não pode ser superior ao valor total da transação.");
+        }
+
+        this.platformFee = feeAmount;
+        this.netAmount = this.amount.subtract(feeAmount);
+    }
+
 
     public void release() {
         if (getStatus() != TransactionStatus.DISPUTED) {

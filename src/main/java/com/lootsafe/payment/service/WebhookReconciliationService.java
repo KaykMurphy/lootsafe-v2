@@ -96,7 +96,15 @@ public class WebhookReconciliationService {
 
         Transaction transaction = payment.getTransaction();
         transaction.approve();
+
+        transaction.startInspectionWindow(transaction.getInspectionTimeHours());
+
         transactionRepository.save(transaction);
+
+        log.info("Janela de inspeção iniciada para a transacao={}. Expira em={}. Duracao={}h.",
+                transaction.getId(),
+                transaction.getInspectionExpiresAt(),
+                transaction.getInspectionTimeHours());
 
         Announcement announcement = transaction.getAnnouncement();
         announcement.markAsSold();
