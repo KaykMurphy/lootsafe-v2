@@ -38,6 +38,12 @@ public class Transaction extends AbstractAuditableEntity{
     private static final String MSG_INSPECTION_HOURS_MUST_BE_POSITIVE =
             "A quantidade de horas para inspeção deve ser maior que zero.";
 
+    private static final String MSG_ONLY_APPROVED_AND_IN_INSPECTION_CAN_BE_AUTO_RELEASED =
+            "Apenas transações aprovadas e em período de inspeção podem sofrer liberação automática.";
+
+    private static final String MSG_INSPECTION_PERIOD_NOT_EXPIRED =
+            "O período de inspeção desta transação ainda não expirou.";
+
     @Column(precision = 10, scale = 2)
     private BigDecimal amount;
 
@@ -175,7 +181,22 @@ public class Transaction extends AbstractAuditableEntity{
             throw new BusinessException(MSG_ONLY_DISPUTED_CAN_BE_RELEASED);
         }
         setStatus(TransactionStatus.RELEASED);
+        this.payoutStatus = PayoutStatus.PENDING;
     }
+
+    public void autoRelease() {
+        if (getStatus() != TransactionStatus.APPROVED) {
+            throw new BusinessException(MSG_ONLY_APPROVED_AND_IN_INSPECTION_CAN_BE_AUTO_RELEASED);
+        }
+
+        if (!isInspectionExpired()) {
+            throw new BusinessException(MSG_INSPECTION_PERIOD_NOT_EXPIRED);
+        }
+
+        setStatus(TransactionStatus.RELEASED);
+        this.payoutStatus = PayoutStatus.PENDING;
+    }
+
 
     public void refund() {
         if (getStatus() != TransactionStatus.DISPUTED) {

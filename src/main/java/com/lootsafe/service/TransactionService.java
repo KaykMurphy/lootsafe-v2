@@ -15,6 +15,7 @@ import com.lootsafe.exception.ResourceNotFoundException;
 import com.lootsafe.exception.UnauthorizedException;
 import com.lootsafe.mapper.PaymentMapper;
 import com.lootsafe.mapper.TransactionMapper;
+import com.lootsafe.payment.payout.PayoutService;
 import com.lootsafe.payment.service.PaymentService;
 import com.lootsafe.repository.AnnouncementRepository;
 import com.lootsafe.repository.PaymentRepository;
@@ -62,6 +63,7 @@ public class TransactionService {
     private final PaymentMapper paymentMapper;
     private final PaymentRepository paymentRepository;
     private final FeeCalculationService feeCalculationService;
+    private final PayoutService payoutService;
 
     @Transactional
     public TransactionResponseDTO initiateTransaction(String announcementToken, UUID buyerId) {
@@ -200,6 +202,8 @@ public class TransactionService {
         transaction.confirmReceipt();
 
         Transaction savedTransaction = transactionRepository.save(transaction);
+
+        payoutService.processPayout(savedTransaction.getId());
 
         log.info("Comprador={} confirmou recebimento antecipado da transacao={}. Liberando escrow.",
                 buyerId, transactionId);

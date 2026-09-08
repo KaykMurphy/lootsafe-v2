@@ -11,9 +11,11 @@ import com.lootsafe.exception.BusinessException;
 import com.lootsafe.exception.ResourceNotFoundException;
 import com.lootsafe.exception.UnauthorizedException;
 import com.lootsafe.mapper.DisputeMapper;
+import com.lootsafe.payment.payout.PayoutService;
 import com.lootsafe.payment.service.PaymentService;
 import com.lootsafe.repository.DisputeRepository;
 import com.lootsafe.repository.PaymentRepository;
+import com.lootsafe.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +45,8 @@ public class DisputeService {
     private final DisputeMapper disputeMapper;
     private final PaymentService paymentService;
     private final PaymentRepository paymentRepository;
+    private final PayoutService payoutService;
+    private final TransactionRepository transactionRepository;
 
     @Transactional
     public DisputeResponseDTO openDispute(UUID transactionId, UUID initiatedById, String reason) {
@@ -88,14 +92,24 @@ public class DisputeService {
         Transaction transaction = disputeChat.getTransaction();
 
         switch (resolutionStatus) {
-            case RESOLVED_RELEASE -> transaction.release();
+            case RESOLVED_RELEASE -> {
+                transaction.release();
+
+                transactionRepository.save(transaction);
+                payoutService.processPayout(transaction.getId());
+            }
 
             case RESOLVED_REFUND -> {
                 transaction.refund();
 
                 Payment approvedPayment = paymentRepository
-                        .findByTransactionIdAndStatus(transaction.getId(), PaymentStatus.APPROVED)
-                        .orElseThrow(() -> new ResourceNotFoundException(MSG_APPROVED_PAYMENT_NOT_FOUND));
+                        .findByTransactionIdAndStatus(
+                                transaction.getId(),
+                                PaymentStatus.APPROVED
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(MSG_APPROVED_PAYMENT_NOT_FOUND)
+                        );
 
                 paymentService.refundPayment(approvedPayment.getId());
             }
