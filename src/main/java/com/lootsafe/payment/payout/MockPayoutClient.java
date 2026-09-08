@@ -15,18 +15,23 @@ import java.util.UUID;
 public class MockPayoutClient implements PayoutClient {
 
     @Override
-    public PayoutResult transferPix(String pixKey, BigDecimal amount, String externalReference, String description) {
-        log.info("[MOCK PAYOUT] Simulando transferência Pix: pixKey={}, amount={}, ref={}, desc={}",
-                pixKey, amount, externalReference, description);
+    public PayoutResult transferPix(String pixKey,
+                                    BigDecimal amount,
+                                    String externalReference,
+                                    String description) {
 
-        String mockTransferId = "mock-payout-" + UUID.randomUUID();
+        String id = "mock-pix-" + UUID.randomUUID();
+
+        log.info("Simulando transferencia Pix: id={}, pixKey={}, valor={}, ref={}, desc={}",
+                id, pixKey, amount, externalReference, description);
 
         return new PayoutResult(
-                mockTransferId,
+                id,
                 PayoutStatus.PAID,
                 Instant.now(),
-                "{\"status\":\"PAID\",\"transfer_id\":\"" + mockTransferId + "\"}",
+                "{ \"status\": \"PAID\", \"mock\": true }",
                 null
         );
     }
 }
+
