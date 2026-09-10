@@ -1,6 +1,6 @@
 # LootSafe v2
 
-> Status: em desenvolvimento.
+> Status: em desenvolvimento (fase de desenvolvimento e cobertura de testes).
 
 Reescrita do projeto [LootSafe](https://github.com/KaykMurphy/lootSafe) com foco em código mais limpo, melhor organização e evolução incremental do domínio de escrow digital.
 
@@ -202,7 +202,7 @@ Os endpoints `/api/admin` exigem o papel `ADMIN`. Em `dev`, promova um usuário 
 
 ## Próximos Passos
 
-- **Testes automatizados de integração:** Foco no Webhook e Criação do Pix via MockMvc.
+- **Testes automatizados:** Em andamento (cobertura de testes unitários de domínio e serviços, além de integração com MockMvc).
 - Cancelamento de reservas quando o anúncio for excluído.
 - Notificações por e-mail de eventos de pagamento e disputa.
 - Paginação e filtros nos endpoints de listagem.
