@@ -64,6 +64,17 @@ public class UserController {
         return userService.createUser(request);
     }
 
+    @GetMapping("/me")
+    public UserResponseDTO getMe(@AuthenticationPrincipal UUID currentUserId) {
+        return userService.getUserForUser(currentUserId, currentUserId);
+    }
+
+    @PutMapping("/me")
+    public UserResponseDTO updateMe(@RequestBody @Valid UserUpdateRequestDTO request,
+                                    @AuthenticationPrincipal UUID currentUserId) {
+        return userService.updateUser(currentUserId, request);
+    }
+
     @GetMapping("/{id}")
     public UserResponseDTO getUserById(@PathVariable UUID id,
                                        @AuthenticationPrincipal UUID currentUserId) {

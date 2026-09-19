@@ -1,5 +1,6 @@
 package com.lootsafe.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.*;
 
 public record UserRequestDTO(
@@ -15,6 +16,7 @@ public record UserRequestDTO(
         @NotBlank
         @Size(min = 8, max = 100)
         @Pattern(regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!]).{8,100}$", message = "A senha deve ter no mínimo 8 caracteres, incluindo letras maiúsculas, minúsculas, números e caracteres especiais.")
+        @JsonAlias({"password", "passwordHash"})
         String passwordHash,
 
         @Size(max = 255)

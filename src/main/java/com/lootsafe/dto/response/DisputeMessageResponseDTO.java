@@ -7,7 +7,9 @@ public record DisputeMessageResponseDTO(
 
         UUID id,
         UUID disputeChatId,
+        UUID disputeId,
         UUID senderId,
+        String senderName,
         String content,
         Instant createdAt
 

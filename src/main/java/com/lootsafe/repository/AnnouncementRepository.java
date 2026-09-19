@@ -25,4 +25,6 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, UUID
 
     Optional<Announcement> findByIdAndSellerId(UUID id, UUID sellerId);
 
+    List<com.lootsafe.entity.Announcement> findByStatus(com.lootsafe.enums.AnnouncementStatus status);
+
 }

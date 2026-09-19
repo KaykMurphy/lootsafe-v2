@@ -10,6 +10,7 @@ public record DisputeResponseDTO(
         UUID id,
         UUID transactionId,
         UUID initiatedById,
+        String initiatedByName,
         DisputeStatus status,
         String reason,
         String resolutionNotes,

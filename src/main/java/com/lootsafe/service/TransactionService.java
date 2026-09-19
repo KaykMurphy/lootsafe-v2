@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -159,6 +160,28 @@ public class TransactionService {
                 .toList();
     }
 
+    public List<TransactionResponseDTO> getMyPurchases(UUID buyerId) {
+        return transactionRepository.findByBuyerId(buyerId)
+                .stream()
+                .map(tx -> {
+                    Payment payment = paymentService.findLatestPayment(tx.getId());
+                    PaymentResponseDTO paymentDTO = payment == null ? null : paymentMapper.toResponse(payment);
+                    return buildResponse(tx, paymentDTO);
+                })
+                .toList();
+    }
+
+    public List<TransactionResponseDTO> getMySales(UUID sellerId) {
+        return transactionRepository.findBySellerId(sellerId)
+                .stream()
+                .map(tx -> {
+                    Payment payment = paymentService.findLatestPayment(tx.getId());
+                    PaymentResponseDTO paymentDTO = payment == null ? null : paymentMapper.toResponse(payment);
+                    return buildResponse(tx, paymentDTO);
+                })
+                .toList();
+    }
+
     public TransactionResponseDTO getTransactionById(UUID id) {
         Transaction transaction = findEntityById(id);
         Payment payment = paymentService.findLatestPayment(transaction.getId());
@@ -215,21 +238,61 @@ public class TransactionService {
         return buildResponse(savedTransaction, paymentDTO);
     }
 
+    @Transactional
+    public TransactionResponseDTO simulatePaymentApproval(UUID transactionId, UUID currentUserId) {
+        Transaction transaction = findEntityById(transactionId);
+        User user = userService.findEntityById(currentUserId);
+        boolean isBuyer = transaction.getBuyer().getId().equals(currentUserId);
+        boolean isSeller = transaction.getSeller().getId().equals(currentUserId);
+        boolean isAdmin = user.hasRole(UserRole.ADMIN);
+
+        if (!isBuyer && !isSeller && !isAdmin) {
+            throw new UnauthorizedException(MSG_UNAUTHORIZED_ACCESS);
+        }
+
+        if (transaction.getStatus() != TransactionStatus.PENDING) {
+            throw new BusinessException("A transação não está pendente de pagamento.");
+        }
+
+        Payment payment = paymentService.findLatestPayment(transactionId);
+        if (payment != null) {
+            payment.setStatus(PaymentStatus.APPROVED);
+            payment.setPaidAt(Instant.now());
+            paymentRepository.save(payment);
+        }
+
+        transaction.approve();
+        transaction.startInspectionWindow(transaction.getInspectionTimeHours());
+        Transaction saved = transactionRepository.save(transaction);
+
+        if (saved.getAnnouncement() != null) {
+            saved.getAnnouncement().markAsSold();
+        }
+
+        PaymentResponseDTO paymentDTO = payment == null ? null : paymentMapper.toResponse(payment);
+        return buildResponse(saved, paymentDTO);
+    }
+
     private TransactionResponseDTO buildResponse(Transaction transaction, PaymentResponseDTO paymentResponse) {
         TransactionResponseDTO base = transactionMapper.toResponse(transaction);
 
         return new TransactionResponseDTO(
                 base.id(),
                 base.announcementId(),
+                base.announcementTitle(),
                 base.buyerId(),
+                base.buyerName(),
                 base.sellerId(),
+                base.sellerName(),
                 base.status(),
                 base.amount(),
+                base.platformFee(),
+                base.netAmount(),
                 base.createdAt(),
                 base.updatedAt(),
                 paymentResponse,
                 base.inspectionTimeHours(),
-                base.netAmount(),
+                base.inspectionExpiresAt(),
                 base.payoutStatus(),
                 base.payoutPaidAt()
         );

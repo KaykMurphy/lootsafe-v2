@@ -51,8 +51,8 @@ class TransactionServiceTest {
 
     private TransactionResponseDTO responseDTO() {
         return new TransactionResponseDTO(
-                UUID.randomUUID(), null, null, null,
-                null, null, null, null, null,
+                UUID.randomUUID(), null, null, null, null, null, null,
+                null, null, null, null, null, null, null,
                 null, null, null, null
         );
     }

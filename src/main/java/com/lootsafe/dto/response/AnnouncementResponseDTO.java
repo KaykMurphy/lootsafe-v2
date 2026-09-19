@@ -16,6 +16,7 @@ public record AnnouncementResponseDTO(
         BigDecimal price,
         AnnouncementStatus status,
         UUID sellerId,
+        String sellerName,
         Instant createdAt,
         Instant updatedAt,
 

@@ -1,5 +1,6 @@
 package com.lootsafe.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
@@ -16,6 +17,7 @@ public record AnnouncementRequestDTO(
 
         @NotBlank
         @Pattern(regexp = "^[^<>]*$", message = "Caracteres HTML não são permitidos nas credenciais.")
+        @JsonAlias({"credentialsEncrypted", "credentials"})
         String credentials,
 
         @Size(max = 1000)

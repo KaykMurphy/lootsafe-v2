@@ -72,6 +72,20 @@ public class AnnouncementService {
         return announcementMapper.toResponse(announcement);
     }
 
+    public java.util.List<AnnouncementResponseDTO> getActiveAnnouncements() {
+        return announcementRepository.findByStatus(AnnouncementStatus.ACTIVE)
+                .stream()
+                .map(announcementMapper::toResponse)
+                .toList();
+    }
+
+    public java.util.List<AnnouncementResponseDTO> getMyAnnouncements(UUID sellerId) {
+        return announcementRepository.findBySellerId(sellerId)
+                .stream()
+                .map(announcementMapper::toResponse)
+                .toList();
+    }
+
     //services
     @Transactional
     public AnnouncementResponseDTO updateAnnouncement(UUID userId, UUID announcementId, AnnouncementRequestDTO updated) {

@@ -12,7 +12,7 @@ public class PaymentScheduler {
 
     private final PaymentExpirationService paymentExpirationService;
 
-    @Scheduled(fixedDelayString = "${payment.expiration-check-interval-ms}")
+    @Scheduled(fixedDelayString = "${payment.expiration-check-interval-ms:3600000}")
     @SchedulerLock(name = "expirePendingPaymentsLock", lockAtLeastFor = "15s", lockAtMostFor = "5m")
     public void checkAndExpirePayments() {
         paymentExpirationService.expirePendingPayments();

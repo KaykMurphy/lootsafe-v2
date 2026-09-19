@@ -131,4 +131,10 @@ public class DisputeService {
                 .map(disputeMapper::toResponse)
                 .toList();
     }
+
+    public DisputeResponseDTO findByTransactionId(UUID transactionId) {
+        DisputeChat disputeChat = disputeRepository.findByTransactionId(transactionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Nenhuma disputa encontrada para esta transação."));
+        return disputeMapper.toResponse(disputeChat);
+    }
 }

@@ -1,12 +1,13 @@
 package com.lootsafe.config;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import javax.cache.Caching;
+import javax.cache.configuration.MutableConfiguration;
+import javax.cache.expiry.CreatedExpiryPolicy;
+import javax.cache.expiry.Duration;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
@@ -14,11 +15,13 @@ import java.util.concurrent.TimeUnit;
 public class CacheConfig {
 
     @Bean
-    public CacheManager cacheManager() {
-        CaffeineCacheManager manager = new CaffeineCacheManager("buckets");
-        manager.setCaffeine(Caffeine.newBuilder()
-                .expireAfterAccess(1, TimeUnit.HOURS)
-                .maximumSize(10_000));
-        return manager;
+    public javax.cache.CacheManager jCacheManager() {
+        var provider = Caching.getCachingProvider();
+        var cacheManager = provider.getCacheManager();
+        if (cacheManager.getCache("buckets") == null) {
+            cacheManager.createCache("buckets", new MutableConfiguration<>()
+                    .setExpiryPolicyFactory(CreatedExpiryPolicy.factoryOf(new Duration(TimeUnit.HOURS, 1))));
+        }
+        return cacheManager;
     }
 }

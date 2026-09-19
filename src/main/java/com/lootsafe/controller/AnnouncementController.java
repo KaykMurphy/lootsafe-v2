@@ -27,6 +27,16 @@ public class AnnouncementController {
         return announcementService.createAnnouncement(currentUserId, request);
     }
 
+    @GetMapping
+    public java.util.List<AnnouncementResponseDTO> getActiveAnnouncements() {
+        return announcementService.getActiveAnnouncements();
+    }
+
+    @GetMapping("/me")
+    public java.util.List<AnnouncementResponseDTO> getMyAnnouncements(@AuthenticationPrincipal UUID currentUserId) {
+        return announcementService.getMyAnnouncements(currentUserId);
+    }
+
     @GetMapping("/{token}")
     public AnnouncementResponseDTO getAnnouncementByToken(@PathVariable String token) {
         return announcementService.getAnnouncementByToken(token);
@@ -45,6 +55,14 @@ public class AnnouncementController {
     @PreAuthorize("hasRole('SELLER')")
     public void cancelAnnouncement(@PathVariable UUID id,
                                    @AuthenticationPrincipal UUID currentUserId) {
+        announcementService.cancelAnnouncement(currentUserId, id);
+    }
+
+    @PostMapping("/{id}/cancel")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('SELLER')")
+    public void cancelAnnouncementPost(@PathVariable UUID id,
+                                       @AuthenticationPrincipal UUID currentUserId) {
         announcementService.cancelAnnouncement(currentUserId, id);
     }
 

@@ -11,16 +11,21 @@ public record TransactionResponseDTO(
 
         UUID id,
         UUID announcementId,
+        String announcementTitle,
         UUID buyerId,
+        String buyerName,
         UUID sellerId,
+        String sellerName,
         TransactionStatus status,
         BigDecimal amount,
+        BigDecimal platformFee,
+        BigDecimal netAmount,
         Instant createdAt,
         Instant updatedAt,
         PaymentResponseDTO payment,
 
         Integer inspectionTimeHours,
-        BigDecimal netAmount,
+        Instant inspectionExpiresAt,
         PayoutStatus payoutStatus,
         String payoutPaidAt
 

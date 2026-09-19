@@ -10,6 +10,8 @@ import org.mapstruct.MappingTarget;
 @Mapper(componentModel = "spring")
 public interface AnnouncementMapper {
 
+    @Mapping(target = "sellerId", source = "seller.id")
+    @Mapping(target = "sellerName", source = "seller.name")
     AnnouncementResponseDTO toResponse(Announcement announcement);
 
     @Mapping(target = "credentialsEncrypted", ignore = true)

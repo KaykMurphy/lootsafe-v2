@@ -29,7 +29,7 @@ public class SecurityConfig {
     @Value("${api.swagger.enabled:false}")
     private boolean swaggerEnabled;
 
-    @Value("${api.cors.allowed-origins}")
+    @Value("${api.cors.allowed-origins:http://localhost:*,http://127.0.0.1:*}")
     private List<String> allowedOrigins;
 
     @Bean
@@ -55,12 +55,17 @@ public class SecurityConfig {
 
                     auth
                             .requestMatchers(HttpMethod.POST, "/api/users/login", "/api/users/register", "/api/users/refresh").permitAll()
-                            .requestMatchers(HttpMethod.GET, "/api/announcements/*").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/announcements", "/api/announcements/**").permitAll()
                             .requestMatchers("/api/admin/**").hasRole("ADMIN")
                             .requestMatchers(HttpMethod.POST, "/api/announcements").hasRole("SELLER")
-                            .requestMatchers(HttpMethod.POST, "/api/transactions").hasRole("BUYER")
+                            .requestMatchers(HttpMethod.POST, "/api/announcements/*/cancel").hasRole("SELLER")
+                            .requestMatchers(HttpMethod.POST, "/api/transactions/*/dispute").authenticated()
+                            .requestMatchers(HttpMethod.POST, "/api/transactions", "/api/transactions/initiate").hasRole("BUYER")
+                            .requestMatchers(HttpMethod.POST, "/api/transactions/*/confirm", "/api/transactions/*/confirm-receipt").hasRole("BUYER")
+                            .requestMatchers(HttpMethod.POST, "/api/transactions/*/simulate-payment").authenticated()
                             .requestMatchers(HttpMethod.POST, "/api/webhooks/mercadopago").permitAll()
                             .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+                            .requestMatchers("/ws/**").permitAll()
                             .anyRequest().authenticated();
                 })
                 .oauth2ResourceServer(oauth2 -> oauth2
@@ -72,7 +77,13 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(allowedOrigins);
+        configuration.setAllowedOriginPatterns(List.of(
+                "http://localhost:[*]",
+                "http://127.0.0.1:[*]"
+        ));
+        if (allowedOrigins != null) {
+            allowedOrigins.forEach(configuration::addAllowedOriginPattern);
+        }
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
