@@ -123,6 +123,15 @@ Cobranças Pix pendentes que passam do prazo de validade são canceladas pelo sc
 | POST   | `/`  | Envia mensagem na disputa       | Participante / ADMIN |
 | GET    | `/`  | Lista mensagens da disputa      | Participante / ADMIN |
 
+### WebSocket & STOMP em Tempo Real (`/ws`)
+
+| Destino / Endpoint | Tipo | Descrição | Acesso |
+| ------------------ | ---- | --------- | ------ |
+| `/ws` | Handshake WebSocket | Conexão WebSocket nativa para STOMP | Autenticação via JWT no frame `CONNECT` |
+| `/ws-sockjs` | Handshake SockJS | Endpoint de fallback para clientes com emulação SockJS | Autenticação via JWT no frame `CONNECT` |
+| `/app/disputes/{disputeId}/messages` | STOMP SEND | Publicação de mensagem em tempo real na disputa | Comprador / Vendedor / ADMIN |
+| `/topic/disputes/{disputeId}/messages` | STOMP SUBSCRIBE | Inscrição para recebimento em tempo real de mensagens | Comprador / Vendedor / ADMIN |
+
 ### Administração (`/api/admin`)
 
 | Método | Rota                            | Descrição                                   | Acesso |
