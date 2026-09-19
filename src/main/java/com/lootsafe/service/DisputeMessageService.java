@@ -27,6 +27,7 @@ public class DisputeMessageService {
     private final DisputeRepository disputeRepository;
     private final UserService userService;
     private final DisputeMessageMapper disputeMessageMapper;
+    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     private static final String MSG_DISPUTE_NOT_FOUND = "Disputa não encontrada.";
     private static final String MSG_NOT_DISPUTE_PARTICIPANT =
@@ -51,7 +52,14 @@ public class DisputeMessageService {
 
         DisputeMessage savedMessage = disputeMessageRepository.save(disputeMessage);
 
-        return disputeMessageMapper.toResponse(savedMessage);
+        DisputeMessageResponseDTO response = disputeMessageMapper.toResponse(savedMessage);
+
+        messagingTemplate.convertAndSend(
+                "/topic/disputes/" + disputeId + "/messages",
+                response
+        );
+
+        return response;
     }
 
 
