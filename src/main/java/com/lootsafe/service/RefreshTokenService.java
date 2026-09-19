@@ -31,15 +31,18 @@ public class RefreshTokenService {
 
         User user = userService.findEntityById(userId);
 
-        // one device at a time
-        refreshTokenRepository.deleteByUser(user);
+        RefreshToken refreshToken = refreshTokenRepository.findByUser(user)
+                .orElseGet(() -> {
+                    RefreshToken token = new RefreshToken();
+                    token.setUser(user);
+                    return token;
+                });
 
-        RefreshToken refreshToken = new RefreshToken();
-        refreshToken.setUser(user);
         refreshToken.setToken(UUID.randomUUID().toString());
         refreshToken.setExpiryDate(Instant.now().plusMillis(jwtProperties.getRefreshExpirationMs()));
+        refreshToken.setRevoked(false);
 
-        return refreshTokenRepository.save(refreshToken);
+        return refreshTokenRepository.saveAndFlush(refreshToken);
     }
 
     @Transactional
