@@ -62,7 +62,6 @@ public class SecurityConfig {
                             .requestMatchers(HttpMethod.POST, "/api/transactions/*/dispute").authenticated()
                             .requestMatchers(HttpMethod.POST, "/api/transactions", "/api/transactions/initiate").hasRole("BUYER")
                             .requestMatchers(HttpMethod.POST, "/api/transactions/*/confirm", "/api/transactions/*/confirm-receipt").hasRole("BUYER")
-                            .requestMatchers(HttpMethod.POST, "/api/transactions/*/simulate-payment").authenticated()
                             .requestMatchers(HttpMethod.POST, "/api/webhooks/mercadopago").permitAll()
                             .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                             .requestMatchers("/ws/**").permitAll()

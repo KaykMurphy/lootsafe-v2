@@ -238,41 +238,6 @@ public class TransactionService {
         return buildResponse(savedTransaction, paymentDTO);
     }
 
-    @Transactional
-    public TransactionResponseDTO simulatePaymentApproval(UUID transactionId, UUID currentUserId) {
-        Transaction transaction = findEntityById(transactionId);
-        User user = userService.findEntityById(currentUserId);
-        boolean isBuyer = transaction.getBuyer().getId().equals(currentUserId);
-        boolean isSeller = transaction.getSeller().getId().equals(currentUserId);
-        boolean isAdmin = user.hasRole(UserRole.ADMIN);
-
-        if (!isBuyer && !isSeller && !isAdmin) {
-            throw new UnauthorizedException(MSG_UNAUTHORIZED_ACCESS);
-        }
-
-        if (transaction.getStatus() != TransactionStatus.PENDING) {
-            throw new BusinessException("A transação não está pendente de pagamento.");
-        }
-
-        Payment payment = paymentService.findLatestPayment(transactionId);
-        if (payment != null) {
-            payment.setStatus(PaymentStatus.APPROVED);
-            payment.setPaidAt(Instant.now());
-            paymentRepository.save(payment);
-        }
-
-        transaction.approve();
-        transaction.startInspectionWindow(transaction.getInspectionTimeHours());
-        Transaction saved = transactionRepository.save(transaction);
-
-        if (saved.getAnnouncement() != null) {
-            saved.getAnnouncement().markAsSold();
-        }
-
-        PaymentResponseDTO paymentDTO = payment == null ? null : paymentMapper.toResponse(payment);
-        return buildResponse(saved, paymentDTO);
-    }
-
     private TransactionResponseDTO buildResponse(Transaction transaction, PaymentResponseDTO paymentResponse) {
         TransactionResponseDTO base = transactionMapper.toResponse(transaction);
 

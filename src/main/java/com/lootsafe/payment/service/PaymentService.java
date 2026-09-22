@@ -70,12 +70,7 @@ public class PaymentService {
 
         OrderCreateRequest request = buildOrderRequest(transaction, expiresIn, externalReference);
 
-        Order order = null;
-        try {
-            order = mercadoPagoClient.createOrder(request, idempotencyKey);
-        } catch (PaymentProviderException ex) {
-            log.warn("Mercado Pago indisponível ou credenciais de teste (HTTP erro: {}). Gerando cobrança Pix simulada para desenvolvimento.", ex.getMessage());
-        }
+        Order order = mercadoPagoClient.createOrder(request, idempotencyKey);
 
         Payment payment = buildPayment(transaction, expiresIn, idempotencyKey, externalReference, order);
 
@@ -210,11 +205,6 @@ public class PaymentService {
                     payment.setExpiresAt(OffsetDateTime.parse(mercadoPagoPayment.getDateOfExpiration()).toInstant());
                 }
             }
-        } else {
-            payment.setExternalId("sim-" + UUID.randomUUID().toString().substring(0, 8));
-            payment.setPaymentMethod("pix");
-            payment.setPixCode("00020126580014br.gov.bcb.pix0136lootsafe-pix-escrow-" + transaction.getId());
-            payment.setStatusDetail("pending_waiting_transfer");
         }
 
         if (payment.getExpiresAt() == null) {
@@ -232,6 +222,4 @@ public class PaymentService {
                 .findFirst()
                 .orElse(null);
     }
-
-    // TODO: Criar método auxiliar findEntityById(UUID id) e reutilizar nas buscas de pagamento > paymentRepository.findById(paymentId)
 }
