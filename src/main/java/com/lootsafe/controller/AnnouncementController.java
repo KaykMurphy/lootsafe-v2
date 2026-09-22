@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -28,12 +29,12 @@ public class AnnouncementController {
     }
 
     @GetMapping
-    public java.util.List<AnnouncementResponseDTO> getActiveAnnouncements() {
+    public List<AnnouncementResponseDTO> getActiveAnnouncements() {
         return announcementService.getActiveAnnouncements();
     }
 
     @GetMapping("/me")
-    public java.util.List<AnnouncementResponseDTO> getMyAnnouncements(@AuthenticationPrincipal UUID currentUserId) {
+    public List<AnnouncementResponseDTO> getMyAnnouncements(@AuthenticationPrincipal UUID currentUserId) {
         return announcementService.getMyAnnouncements(currentUserId);
     }
 

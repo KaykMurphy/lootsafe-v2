@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -64,7 +65,6 @@ public class AnnouncementService {
     }
 
 
-    //controllers
     public AnnouncementResponseDTO getAnnouncementByToken(String token) {
         Announcement announcement = announcementRepository.findByToken(token)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_ANNOUNCEMENT_TOKEN_NOT_FOUND));
@@ -72,21 +72,20 @@ public class AnnouncementService {
         return announcementMapper.toResponse(announcement);
     }
 
-    public java.util.List<AnnouncementResponseDTO> getActiveAnnouncements() {
+    public List<AnnouncementResponseDTO> getActiveAnnouncements() {
         return announcementRepository.findByStatus(AnnouncementStatus.ACTIVE)
                 .stream()
                 .map(announcementMapper::toResponse)
                 .toList();
     }
 
-    public java.util.List<AnnouncementResponseDTO> getMyAnnouncements(UUID sellerId) {
+    public List<AnnouncementResponseDTO> getMyAnnouncements(UUID sellerId) {
         return announcementRepository.findBySellerId(sellerId)
                 .stream()
                 .map(announcementMapper::toResponse)
                 .toList();
     }
 
-    //services
     @Transactional
     public AnnouncementResponseDTO updateAnnouncement(UUID userId, UUID announcementId, AnnouncementRequestDTO updated) {
 

@@ -7,6 +7,7 @@ import com.lootsafe.dto.response.TransactionResponseDTO;
 import com.lootsafe.service.DigitalProductDeliveryService;
 import com.lootsafe.service.DisputeService;
 import com.lootsafe.service.TransactionService;
+import com.lootsafe.exception.BusinessException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -36,24 +38,18 @@ public class TransactionController {
                 ? request.announcementToken()
                 : tokenParam;
         if (token == null || token.isBlank()) {
-            throw new com.lootsafe.exception.BusinessException("O token do anúncio é obrigatório.");
+            throw new BusinessException("O token do anúncio é obrigatório.");
         }
         return transactionService.initiateTransaction(token, currentUserId);
     }
 
-    @PostMapping("/{id}/simulate-payment")
-    public TransactionResponseDTO simulatePaymentApproval(@PathVariable UUID id,
-                                                          @AuthenticationPrincipal UUID currentUserId) {
-        return transactionService.simulatePaymentApproval(id, currentUserId);
-    }
-
     @GetMapping("/me/purchases")
-    public java.util.List<TransactionResponseDTO> getMyPurchases(@AuthenticationPrincipal UUID currentUserId) {
+    public List<TransactionResponseDTO> getMyPurchases(@AuthenticationPrincipal UUID currentUserId) {
         return transactionService.getMyPurchases(currentUserId);
     }
 
     @GetMapping("/me/sales")
-    public java.util.List<TransactionResponseDTO> getMySales(@AuthenticationPrincipal UUID currentUserId) {
+    public List<TransactionResponseDTO> getMySales(@AuthenticationPrincipal UUID currentUserId) {
         return transactionService.getMySales(currentUserId);
     }
 
@@ -79,7 +75,6 @@ public class TransactionController {
         return transactionService.confirmReceipt(id, currentUserId);
     }
 
-    // ─── Dispute endpoints (acessados via /api/transactions/{id}/dispute) ────
 
     @PostMapping("/{id}/dispute")
     @ResponseStatus(HttpStatus.CREATED)
@@ -95,5 +90,12 @@ public class TransactionController {
                                                       @AuthenticationPrincipal UUID currentUserId) {
         transactionService.getTransactionForUser(id, currentUserId);
         return disputeService.findByTransactionId(id);
+    }
+
+    @PutMapping("/{id}/dispute/cancel")
+    public DisputeResponseDTO cancelDisputeByTransaction(@PathVariable UUID id,
+                                                         @AuthenticationPrincipal UUID currentUserId) {
+        DisputeResponseDTO dispute = disputeService.findByTransactionId(id);
+        return disputeService.cancelDispute(dispute.id(), currentUserId);
     }
 }

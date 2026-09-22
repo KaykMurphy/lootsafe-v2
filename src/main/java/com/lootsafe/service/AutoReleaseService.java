@@ -23,7 +23,6 @@ public class AutoReleaseService {
     public void processAutoReleases() {
         Instant now = Instant.now();
 
-        //search for a transaction with an expired inspection period
         List<Transaction> expiredTransactions = transactionRepository
                 .findByStatusAndInspectionExpiresAtBefore(TransactionStatus.APPROVED, now);
 

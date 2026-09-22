@@ -27,6 +27,12 @@ public class DisputeController {
         return disputeService.openDispute(request.transactionId(), currentUserId, request.reason());
     }
 
+    @PutMapping("/{id}/cancel")
+    public DisputeResponseDTO cancelDispute(@PathVariable UUID id,
+                                            @AuthenticationPrincipal UUID currentUserId) {
+        return disputeService.cancelDispute(id, currentUserId);
+    }
+
     @PutMapping("/{id}/resolve")
     @PreAuthorize("hasRole('ADMIN')")
     public DisputeResponseDTO resolveDispute(@PathVariable UUID id,

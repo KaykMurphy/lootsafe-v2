@@ -12,6 +12,7 @@ import com.lootsafe.mapper.DisputeMessageMapper;
 import com.lootsafe.repository.DisputeMessageRepository;
 import com.lootsafe.repository.DisputeRepository;
 import lombok.AllArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +28,7 @@ public class DisputeMessageService {
     private final DisputeRepository disputeRepository;
     private final UserService userService;
     private final DisputeMessageMapper disputeMessageMapper;
-    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+    private final SimpMessagingTemplate messagingTemplate;
 
     private static final String MSG_DISPUTE_NOT_FOUND = "Disputa não encontrada.";
     private static final String MSG_NOT_DISPUTE_PARTICIPANT =

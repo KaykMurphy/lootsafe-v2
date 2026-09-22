@@ -361,6 +361,59 @@ class TransactionTest {
                     () -> transaction.markAsDisputed()
             );
         }
+
+        @Test
+        void markAsDisputed_deveIncrementarTentativas_quandoEntradaValida() {
+            transaction.setStatus(TransactionStatus.APPROVED);
+
+            transaction.markAsDisputed();
+
+            assertEquals(TransactionStatus.DISPUTED, transaction.getStatus());
+            assertEquals(1, transaction.getDisputeAttempts());
+        }
+
+        @Test
+        void markAsDisputed_deveLancarExcecao_quandoAtingirLimiteMaximoDeTentativas() {
+            transaction.setStatus(TransactionStatus.APPROVED);
+            transaction.setDisputeAttempts(4);
+
+            BusinessException ex = assertThrows(
+                    BusinessException.class,
+                    () -> transaction.markAsDisputed()
+            );
+
+            assertTrue(ex.getMessage().contains("limite máximo"));
+        }
+    }
+
+    @Nested
+    class CancelDispute {
+
+        private Transaction transaction;
+
+        @BeforeEach
+        void setUp() {
+            transaction = new Transaction();
+        }
+
+        @Test
+        void cancelDispute_deveAlterarStatusParaApproved_quandoEstiverDisputed() {
+            transaction.setStatus(TransactionStatus.DISPUTED);
+
+            transaction.cancelDispute();
+
+            assertEquals(TransactionStatus.APPROVED, transaction.getStatus());
+        }
+
+        @Test
+        void cancelDispute_deveLancarExcecao_quandoNaoEstiverDisputed() {
+            transaction.setStatus(TransactionStatus.APPROVED);
+
+            assertThrows(
+                    BusinessException.class,
+                    () -> transaction.cancelDispute()
+            );
+        }
     }
 
     @Nested

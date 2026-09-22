@@ -44,6 +44,23 @@ public class Transaction extends AbstractAuditableEntity{
     private static final String MSG_INSPECTION_PERIOD_NOT_EXPIRED =
             "O período de inspeção desta transação ainda não expirou.";
 
+    private static final String MSG_ONLY_DISPUTED_CAN_CANCEL_DISPUTE =
+            "Apenas transações em disputa podem ter a disputa cancelada.";
+
+    private static final String MSG_MAX_DISPUTE_ATTEMPTS_REACHED =
+            "Você atingiu o limite máximo de 4 aberturas de disputa para esta transação.";
+
+    private static final String MSG_PLATFORM_FEE_INVALID =
+            "O valor da taxa da plataforma deve ser informado e não pode ser negativo.";
+
+    private static final String MSG_TRANSACTION_AMOUNT_REQUIRED_FOR_FEES =
+            "O valor total da transação deve estar definido para aplicar taxas.";
+
+    private static final String MSG_PLATFORM_FEE_CANNOT_EXCEED_TOTAL =
+            "A taxa da plataforma não pode ser superior ao valor total da transação.";
+
+    public static final int MAX_DISPUTE_ATTEMPTS = 4;
+
     @Column(precision = 10, scale = 2)
     private BigDecimal amount;
 
@@ -66,6 +83,8 @@ public class Transaction extends AbstractAuditableEntity{
             cascade = CascadeType.ALL, orphanRemoval = true)
     private DisputeChat dispute;
 
+    @Column(name = "dispute_attempts", nullable = false)
+    private Integer disputeAttempts = 0;
 
     @Column(name = "inspection_time_hours")
     private Integer inspectionTimeHours;
@@ -121,7 +140,35 @@ public class Transaction extends AbstractAuditableEntity{
     }
 
 
+    public void markAsDisputed() {
+        if (getStatus() == TransactionStatus.DISPUTED) {
+            return;
+        }
+        if (getStatus() != TransactionStatus.PENDING
+                && getStatus() != TransactionStatus.APPROVED) {
+            throw new BusinessException(MSG_DISPUTE_NOT_ALLOWED_IN_STATE);
+        }
 
+        if (this.disputeAttempts == null) {
+            this.disputeAttempts = 0;
+        }
+
+        if (this.disputeAttempts >= MAX_DISPUTE_ATTEMPTS) {
+            throw new BusinessException(MSG_MAX_DISPUTE_ATTEMPTS_REACHED);
+        }
+
+        this.disputeAttempts++;
+
+        setStatus(TransactionStatus.DISPUTED);
+    }
+
+
+    public void cancelDispute() {
+        if (getStatus() != TransactionStatus.DISPUTED) {
+            throw new BusinessException(MSG_ONLY_DISPUTED_CAN_CANCEL_DISPUTE);
+        }
+        setStatus(TransactionStatus.APPROVED);
+    }
 
     public void approve() {
         if (getStatus() == TransactionStatus.APPROVED) {
@@ -133,16 +180,7 @@ public class Transaction extends AbstractAuditableEntity{
         setStatus(TransactionStatus.APPROVED);
     }
 
-    public void markAsDisputed() {
-        if (getStatus() == TransactionStatus.DISPUTED) {
-            return;
-        }
-        if (getStatus() != TransactionStatus.PENDING
-                && getStatus() != TransactionStatus.APPROVED) {
-            throw new BusinessException(MSG_DISPUTE_NOT_ALLOWED_IN_STATE);
-        }
-        setStatus(TransactionStatus.DISPUTED);
-    }
+
 
     public void confirmReceipt() {
         if (getStatus() == TransactionStatus.RELEASED) {
@@ -160,15 +198,15 @@ public class Transaction extends AbstractAuditableEntity{
 
     public void applyFees(BigDecimal feeAmount) {
         if (feeAmount == null || feeAmount.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BusinessException("O valor da taxa da plataforma deve ser informado e não pode ser negativo.");
+            throw new BusinessException(MSG_PLATFORM_FEE_INVALID);
         }
 
         if (this.amount == null) {
-            throw new BusinessException("O valor total da transação deve estar definido para aplicar taxas.");
+            throw new BusinessException(MSG_TRANSACTION_AMOUNT_REQUIRED_FOR_FEES);
         }
 
         if (feeAmount.compareTo(this.amount) > 0) {
-            throw new BusinessException("A taxa da plataforma não pode ser superior ao valor total da transação.");
+            throw new BusinessException(MSG_PLATFORM_FEE_CANNOT_EXCEED_TOTAL);
         }
 
         this.platformFee = feeAmount;

@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -40,6 +41,9 @@ public class DisputeService {
     private static final String MSG_APPROVED_PAYMENT_NOT_FOUND =
             "Pagamento aprovado não encontrado para esta transação.";
 
+    private static final String MSG_NOT_DISPUTE_INITIATOR =
+             "Apenas o usuário que iniciou a disputa pode cancelá-la.";
+
     private final DisputeRepository disputeRepository;
     private final TransactionService transactionService;
     private final DisputeMapper disputeMapper;
@@ -53,10 +57,6 @@ public class DisputeService {
 
         Transaction transaction = transactionService.findEntityById(transactionId);
 
-        if (disputeRepository.existsDisputeChatByTransaction(transaction)) {
-            throw new BusinessException(MSG_DISPUTE_ALREADY_OPEN);
-        }
-
         if (!transaction.getBuyer().getId().equals(initiatedById)
                 && !transaction.getSeller().getId().equals(initiatedById)) {
             throw new UnauthorizedException(MSG_NOT_TRANSACTION_PARTICIPANT);
@@ -66,18 +66,63 @@ public class DisputeService {
                 ? transaction.getBuyer()
                 : transaction.getSeller();
 
-        DisputeChat disputeChat = new DisputeChat();
-        disputeChat.setTransaction(transaction);
-        disputeChat.setInitiatedBy(initiatedBy);
-        disputeChat.setReason(reason);
-        disputeChat.setStatus(DisputeStatus.OPEN);
+        Optional<DisputeChat> existingDisputeOpt = disputeRepository.findByTransactionId(transactionId);
+
+        DisputeChat disputeChat;
+
+        if (existingDisputeOpt.isPresent()) {
+            disputeChat = existingDisputeOpt.get();
+
+            if (disputeChat.getStatus() == DisputeStatus.OPEN) {
+                throw new BusinessException(MSG_DISPUTE_ALREADY_OPEN);
+            }
+
+            disputeChat.setReason(reason);
+            disputeChat.setInitiatedBy(initiatedBy);
+            disputeChat.setStatus(DisputeStatus.OPEN);
+        } else {
+            disputeChat = new DisputeChat();
+            disputeChat.setTransaction(transaction);
+            disputeChat.setInitiatedBy(initiatedBy);
+            disputeChat.setReason(reason);
+            disputeChat.setStatus(DisputeStatus.OPEN);
+        }
 
         transaction.markAsDisputed();
+        transactionRepository.save(transaction);
 
         DisputeChat savedDisputeChat = disputeRepository.save(disputeChat);
 
         return disputeMapper.toResponse(savedDisputeChat);
     }
+
+    @Transactional
+    public DisputeResponseDTO cancelDispute(UUID disputeId, UUID currentUserId){
+
+        DisputeChat disputeChat = disputeRepository.findById(disputeId)
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_DISPUTE_NOT_FOUND));
+
+        if (!disputeChat.getStatus().equals(DisputeStatus.OPEN)){
+            throw new BusinessException(MSG_DISPUTE_NOT_OPEN);
+        }
+
+        if (!disputeChat.getInitiatedBy().getId().equals(currentUserId)) {
+             throw new UnauthorizedException(MSG_NOT_DISPUTE_INITIATOR);
+        }
+
+        Transaction transaction = disputeChat.getTransaction();
+
+        transaction.cancelDispute();
+
+        transactionRepository.save(transaction);
+
+        disputeChat.setStatus(DisputeStatus.CANCELLED);
+
+        DisputeChat savedDisputeChat = disputeRepository.save(disputeChat);
+
+        return disputeMapper.toResponse(savedDisputeChat);
+    }
+
 
     @Transactional
     public DisputeResponseDTO resolveDispute(UUID disputeId, DisputeStatus resolutionStatus, String resolutionNotes) {
@@ -124,6 +169,8 @@ public class DisputeService {
 
         return disputeMapper.toResponse(savedDisputeChat);
     }
+
+
 
     public List<DisputeResponseDTO> listDisputes() {
         return disputeRepository.findAll()

@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Pattern;
 public record TransactionRequestDTO(
 
         @NotBlank
-        @Pattern(regexp = "^[a-zA-Z0-9\\-]+$", message = "O token do anúncio possui formato inválido.") // '@' adicionado
+        @Pattern(regexp = "^[a-zA-Z0-9\\-]+$", message = "O token do anúncio possui formato inválido.")
         String announcementToken,
 
         Integer agreedInspectionTimeHours

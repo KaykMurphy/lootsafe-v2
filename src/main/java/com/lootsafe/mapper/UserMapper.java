@@ -18,10 +18,6 @@ public interface UserMapper {
     @Mapping(target = "passwordHash", ignore = true)
     User toEntity(UserRequestDTO request);
 
-    /*
-    * ex: target.setName(request.name());
-    */
-
     void updateEntity(@MappingTarget User target,
                       UserRequestDTO request);
 
