@@ -117,6 +117,10 @@ public class InspectionNegotiationService {
         String authorizationToken = UUID.randomUUID().toString();
         proposal.accept(authorizationToken);
 
+        Announcement announcement = proposal.getAnnouncement();
+        announcement.setInspectionTimeHours(proposal.getProposedHours());
+        announcementRepository.save(announcement);
+
         InspectionProposal savedProposal = inspectionProposalRepository.save(proposal);
 
         log.info("Proposta de tempo de inspeção aceita pelo vendedor={}. proposalId={}, announcementId={}, proposedHours={}h, authToken={}",
@@ -162,18 +166,22 @@ public class InspectionNegotiationService {
         return inspectionProposalMapper.toResponse(proposal);
     }
 
-    public List<InspectionProposalResponseDTO> listProposalsByAnnouncement(UUID announcementId, UUID sellerId) {
+    public List<InspectionProposalResponseDTO> listProposalsByAnnouncement(UUID announcementId, UUID currentUserId) {
         Announcement announcement = announcementRepository.findById(announcementId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_ANNOUNCEMENT_NOT_FOUND));
 
-        if (!announcement.getSeller().getId().equals(sellerId)) {
-            throw new UnauthorizedException(MSG_UNAUTHORIZED_SELLER);
+        if (announcement.getSeller().getId().equals(currentUserId)) {
+            return inspectionProposalRepository.findByAnnouncementId(announcementId).stream()
+                    .map(inspectionProposalMapper::toResponse)
+                    .toList();
         }
 
         return inspectionProposalRepository.findByAnnouncementId(announcementId).stream()
+                .filter(proposal -> proposal.getBuyer().getId().equals(currentUserId))
                 .map(inspectionProposalMapper::toResponse)
                 .toList();
     }
+
 
     public List<InspectionProposalResponseDTO> listProposalsByBuyer(UUID buyerId) {
         return inspectionProposalRepository.findByBuyerId(buyerId).stream()
