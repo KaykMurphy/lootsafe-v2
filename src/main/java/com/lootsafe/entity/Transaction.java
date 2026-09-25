@@ -59,6 +59,9 @@ public class Transaction extends AbstractAuditableEntity{
     private static final String MSG_PLATFORM_FEE_CANNOT_EXCEED_TOTAL =
             "A taxa da plataforma não pode ser superior ao valor total da transação.";
 
+    private static final String MSG_INSPECTION_PERIOD_ALREADY_EXPIRED =
+            "O período de inspeção já expirou. Não é mais possível abrir disputa para esta transação.";
+
     public static final int MAX_DISPUTE_ATTEMPTS = 4;
 
     @Column(precision = 10, scale = 2)
@@ -147,6 +150,10 @@ public class Transaction extends AbstractAuditableEntity{
         if (getStatus() != TransactionStatus.PENDING
                 && getStatus() != TransactionStatus.APPROVED) {
             throw new BusinessException(MSG_DISPUTE_NOT_ALLOWED_IN_STATE);
+        }
+
+        if (isInspectionExpired()) {
+            throw new BusinessException(MSG_INSPECTION_PERIOD_ALREADY_EXPIRED);
         }
 
         if (this.disputeAttempts == null) {

@@ -5,6 +5,7 @@ import com.lootsafe.entity.DisputeChat;
 import com.lootsafe.entity.Payment;
 import com.lootsafe.entity.Transaction;
 import com.lootsafe.entity.User;
+import com.lootsafe.enums.AnnouncementStatus;
 import com.lootsafe.enums.DisputeStatus;
 import com.lootsafe.enums.PaymentStatus;
 import com.lootsafe.exception.BusinessException;
@@ -13,6 +14,7 @@ import com.lootsafe.exception.UnauthorizedException;
 import com.lootsafe.mapper.DisputeMapper;
 import com.lootsafe.payment.payout.PayoutService;
 import com.lootsafe.payment.service.PaymentService;
+import com.lootsafe.repository.AnnouncementRepository;
 import com.lootsafe.repository.DisputeRepository;
 import com.lootsafe.repository.PaymentRepository;
 import com.lootsafe.repository.TransactionRepository;
@@ -51,6 +53,7 @@ public class DisputeService {
     private final PaymentRepository paymentRepository;
     private final PayoutService payoutService;
     private final TransactionRepository transactionRepository;
+    private final AnnouncementRepository announcementRepository;
 
     @Transactional
     public DisputeResponseDTO openDispute(UUID transactionId, UUID initiatedById, String reason) {
@@ -140,12 +143,22 @@ public class DisputeService {
             case RESOLVED_RELEASE -> {
                 transaction.release();
 
+                if (transaction.getAnnouncement() != null && transaction.getAnnouncement().getStatus() == AnnouncementStatus.RESERVED) {
+                    transaction.getAnnouncement().markAsSold();
+                    announcementRepository.save(transaction.getAnnouncement());
+                }
+
                 transactionRepository.save(transaction);
                 payoutService.processPayout(transaction.getId());
             }
 
             case RESOLVED_REFUND -> {
                 transaction.refund();
+
+                if (transaction.getAnnouncement() != null && transaction.getAnnouncement().getStatus() == AnnouncementStatus.RESERVED) {
+                    transaction.getAnnouncement().setStatus(AnnouncementStatus.ACTIVE);
+                    announcementRepository.save(transaction.getAnnouncement());
+                }
 
                 Payment approvedPayment = paymentRepository
                         .findByTransactionIdAndStatus(

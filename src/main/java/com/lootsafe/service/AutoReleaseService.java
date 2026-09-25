@@ -1,8 +1,10 @@
 package com.lootsafe.service;
 
 import com.lootsafe.entity.Transaction;
+import com.lootsafe.enums.AnnouncementStatus;
 import com.lootsafe.enums.TransactionStatus;
 import com.lootsafe.payment.payout.PayoutService;
+import com.lootsafe.repository.AnnouncementRepository;
 import com.lootsafe.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +20,7 @@ import java.util.List;
 public class AutoReleaseService {
 
     private final TransactionRepository transactionRepository;
+    private final AnnouncementRepository announcementRepository;
     private final PayoutService payoutService;
 
     public void processAutoReleases() {
@@ -49,6 +52,11 @@ public class AutoReleaseService {
                 transaction.getId(), transaction.getInspectionExpiresAt());
 
         transaction.autoRelease();
+
+        if (transaction.getAnnouncement() != null && transaction.getAnnouncement().getStatus() == AnnouncementStatus.RESERVED) {
+            transaction.getAnnouncement().markAsSold();
+            announcementRepository.save(transaction.getAnnouncement());
+        }
 
         Transaction saved = transactionRepository.save(transaction);
 

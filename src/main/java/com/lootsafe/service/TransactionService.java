@@ -224,6 +224,11 @@ public class TransactionService {
 
         transaction.confirmReceipt();
 
+        if (transaction.getAnnouncement() != null && transaction.getAnnouncement().getStatus() == AnnouncementStatus.RESERVED) {
+            transaction.getAnnouncement().markAsSold();
+            announcementRepository.save(transaction.getAnnouncement());
+        }
+
         Transaction savedTransaction = transactionRepository.save(transaction);
 
         payoutService.processPayout(savedTransaction.getId());
